@@ -1,0 +1,190 @@
+{
+  "name": "cppls",
+  "displayName": "Cpp Language Server",
+  "description": "C/C++ language support powered by the cppls language server.",
+  "version": "0.0.1",
+  "publisher": "cppls",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "c",
+    "cpp",
+    "c++",
+    "language server",
+    "lsp"
+  ],
+  "activationEvents": [
+    "onLanguage:c",
+    "onLanguage:cpp"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cppls.restartServer",
+        "title": "Restart Language Server",
+        "category": "cppls"
+      },
+      {
+        "command": "cppls.stopServer",
+        "title": "Stop Language Server",
+        "category": "cppls"
+      },
+      {
+        "command": "cppls.showLogs",
+        "title": "Show Logs",
+        "category": "cppls"
+      },
+      {
+        "command": "cppls.showServerInfo",
+        "title": "Show Server Info",
+        "category": "cppls"
+      },
+      {
+        "command": "cppls.checkDevServer",
+        "title": "Check Development Server Port",
+        "category": "cppls"
+      }
+    ],
+    "languages": [
+      {
+        "id": "cpp",
+        "aliases": [
+          "C++",
+          "cpp"
+        ],
+        "extensions": [
+          ".cpp",
+          ".cc",
+          ".cxx",
+          ".c++",
+          ".hpp",
+          ".hh",
+          ".hxx",
+          ".h++",
+          ".inl",
+          ".ipp",
+          ".tpp",
+          ".txx",
+          ".ixx",
+          ".cppm",
+          ".ccm",
+          ".cxxm"
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "c",
+        "aliases": [
+          "C",
+          "c"
+        ],
+        "extensions": [
+          ".c",
+          ".h"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "configuration": {
+      "title": "Cpp Language Server",
+      "properties": {
+        "cppls.server.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Path to the `cpp_ls` executable. Relative paths are resolved against the extension root. When empty the bundled `server/cpp_ls` is used."
+        },
+        "cppls.server.launchMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "tcp",
+            "bundled"
+          ],
+          "enumDescriptions": [
+            "Use TCP while the CPPLS_DEV environment variable is set and a server is listening on the configured port; otherwise spawn the server executable (recommended).",
+            "Always connect over TCP. Fails if nothing is listening on the port.",
+            "Always spawn the server executable over stdio, ignoring CPPLS_DEV."
+          ],
+          "default": "auto",
+          "markdownDescription": "How the language server is reached. `auto` connects over TCP when the `CPPLS_DEV` environment variable is set and port `cppls.server.port` answers, and otherwise spawns the server over stdio."
+        },
+        "cppls.server.port": {
+          "type": "number",
+          "default": 5009,
+          "minimum": 1,
+          "maximum": 65535,
+          "scope": "machine-overridable",
+          "markdownDescription": "TCP port of the development language server. Overridden by the `CPPLS_DEV_PORT` environment variable."
+        },
+        "cppls.server.connectTimeout": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 200,
+          "markdownDescription": "Milliseconds to wait for the TCP development server to accept a connection before falling back to a spawned server."
+        },
+        "cppls.server.args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Extra command line arguments passed to the spawned language server."
+        },
+        "cppls.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "markdownDescription": "Traces the communication between VS Code and the cppls language server."
+        },
+        "cppls.revealOutputChannelOnActivate": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Reveal the `cppls` output channel as soon as the language server starts."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "check-types": "tsc -p ./ --noEmit",
+    "bundle": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --outfile=dist/extension.js --sourcemap",
+    "bundle:watch": "npm run bundle -- --watch",
+    "package": "npm run check-types && npm run bundle",
+    "lint": "eslint src",
+    "pretest": "npm run package && npm run lint",
+    "test": "vscode-test",
+    "test:unit": "npm run compile && node --test \"test/unit/**/*.test.mjs\""
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "@types/vscode": "^1.138.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  },
+  "dependencies": {
+    "vscode-jsonrpc": "^9.0.3",
+    "vscode-languageclient": "^10.1.2"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  }
+}

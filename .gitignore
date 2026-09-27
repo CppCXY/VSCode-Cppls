@@ -1,0 +1,14 @@
+out
+dist
+node_modules
+.vscode-test/
+*.vsix
+test-run.log
+
+# Build output of the C++ language server. Binaries are never committed; the
+# extension looks for server/cpp_ls (server/cpp_ls.exe on Windows).
+server/cpp_ls
+server/cpp_ls.exe
+server/build/
+server/CMakeFiles/
+server/CMakeCache.txt
