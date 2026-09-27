@@ -13,31 +13,41 @@ server/
 
 ## 1. Command line contract
 
-The client starts the server in one of two ways. Both must work.
+The client starts the server in one of two ways. Both are implemented by the
+current binary.
 
 | Invocation | When | Transport |
 | --- | --- | --- |
-| `cpp_ls` (with optional `cppls.server.args`) | Default, bundled mode | LSP frames on **stdin/stdout** |
-| `cpp_ls --port 5009` | Convenient for manual testing | LSP frames on a **TCP connection** |
+| `cpp_ls` (plus optional `cppls.server.args`) | Default, bundled mode | LSP frames on **stdin/stdout** |
+| `cpp_ls -c tcp --port 5009` | Development mode, started by hand | LSP frames on a **TCP connection** |
 
 Rules the client relies on:
 
 * **No arguments means stdio.** The client spawns the bare executable and speaks
-  LSP on its stdin/stdout.
-* **`--port <n>` (also accepted: `--socket <n>`) listens on TCP** on
-  `127.0.0.1:<n>`. In development the client connects to the port instead of
-  spawning a process, and it may connect more than once (after each restart).
-* **stdout is reserved for the protocol.** Diagnostics, progress and log output
-  must go to **stderr**; a stray `printf` on stdout corrupts the framing.
+  LSP on its stdin/stdout. `-c stdio` is the server's default.
+* **`-c tcp --port <n>` listens on TCP** (`--ip` selects the address, default
+  `127.0.0.1`). The port has to match `cppls.server.port` / `CPPLS_DEV_PORT`;
+  the extension's default is **5009** while the server's own default is 5007, so
+  pass `--port 5009` explicitly.
+* **stdout is reserved for the protocol.** Logs must go to stderr or a log file
+  (`--log-path`); a stray `printf` on stdout corrupts the framing.
 * **`--help` and `--version` exit 0** without starting a server.
 * Unknown arguments exit non-zero with a message on stderr.
+
+> **TCP sessions are one-shot today.** The server serves a single client and
+> exits when that client disconnects (`ProtocolError("disconnected channel")`).
+> Since the extension probes the port before connecting, and restarts reconnect
+> after you restart the server, a long-lived TCP listener that accepts clients
+> repeatedly would make development much smoother.
 
 In VS Code development mode the same binary is started by hand:
 
 ```bash
-CPPLS_DEV=1 ./server/cpp_ls --port 5009        # macOS / Linux
-$env:CPPLS_DEV='1'; .\server\cpp_ls.exe --port 5009   # Windows PowerShell
+./server/cpp_ls -c tcp --port 5009                      # macOS / Linux
+.\server\cpp_ls.exe -c tcp --port 5009                  # Windows PowerShell
+$env:CPPLS_DEV = '1'                                    # then start VS Code
 ```
+
 ## 2. Wire protocol
 
 JSON-RPC 2.0 messages, each preceded by an ASCII header block terminated by
@@ -210,7 +220,20 @@ int main(int argc, char** argv) {
 
 ## 5. Verifying a server build
 
-The quickest check is a raw frame on stdin:
+```bash
+npm run verify:server                       # stdio + TCP, reports what works
+node scripts/verify-server.mjs --stdio      # only the stdio contract
+node scripts/verify-server.mjs --tcp --port 5009
+node scripts/verify-server.mjs --path /path/to/cpp_ls
+```
+
+The checker drives the binary exactly the way the extension does and reports, per
+transport: the advertised capabilities, `serverInfo`, whether diagnostics reach
+the client, and whether `shutdown`/`exit` end the session cleanly. It exits `0`
+when the transport contract holds, `1` when it does not, and `2` when no binary
+is present (so CI can skip). Non-fatal observations are printed as warnings.
+
+A raw frame check works too:
 
 ```bash
 printf 'Content-Length: 88\r\n\r\n{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}' \
@@ -225,13 +248,15 @@ Then, in VS Code:
 
 1. Press <kbd>F5</kbd> to start the extension host. With `server/cpp_ls` present
    the client spawns it over stdio; or launch *Run Extension (TCP dev server)*
-   after starting your server with `--port 5009`.
+   after starting your server with `-c tcp --port 5009`.
 2. Open a `.cpp` file — the status bar should switch to
    `$(server-process) cppls` (stdio) or `$(radio-tower) cppls :5009` (TCP).
+   Without an open C/C++ file the extension is not activated at all, so nothing
+   appears in the status bar and no command is available.
 3. Run `cppls: Show Server Info` to confirm which executable and origin the
    client is using.
 
 `npm test` inside the repository verifies the *client* half of the handshake
-against a miniature LSP peer, so a failure there is always a client problem; the
-commands above isolate the server.
+against a miniature LSP peer, so a failure there is always a client problem;
+`npm run verify:server` isolates the server.
 

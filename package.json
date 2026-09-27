@@ -18,10 +18,6 @@
     "language server",
     "lsp"
   ],
-  "activationEvents": [
-    "onLanguage:c",
-    "onLanguage:cpp"
-  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -164,9 +160,10 @@
     "bundle:watch": "npm run bundle -- --watch",
     "package": "npm run check-types && npm run bundle",
     "lint": "eslint src",
-    "pretest": "npm run package && npm run lint",
+    "pretest": "npm run compile && npm run package && npm run lint",
     "test": "vscode-test",
-    "test:unit": "npm run compile && node --test \"test/unit/**/*.test.mjs\""
+    "test:unit": "npm run compile && node --test \"test/unit/**/*.test.mjs\"",
+    "verify:server": "node scripts/verify-server.mjs"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

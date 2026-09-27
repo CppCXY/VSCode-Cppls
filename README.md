@@ -1,12 +1,13 @@
 # cppls — C/C++ language support for VS Code
 
 A VS Code extension that runs a **C++ language server** over the Language Server
-Protocol (LSP). The extension is complete and transport agnostic; the server
-binary plugs in at `server/cpp_ls`.
+Protocol (LSP). The server binary lives at `server/cpp_ls`
+(`server/cpp_ls.exe` on Windows).
 
-> **Status:** the client side is finished and tested. The C++ language server
-> itself is a separate binary that is not built yet — see
-> [`server/README.md`](server/README.md) for the contract it has to fulfil.
+> **The extension only activates for C/C++ documents.** If you open a folder that
+> contains no `.cpp`/`.h` file, nothing happens: no status bar item, no commands,
+> no server process. Open a `.cpp` file (or run any `cppls:` command from the
+> Command Palette) to start it.
 
 ## How the server is reached
 
@@ -92,8 +93,8 @@ Because the server is built and started outside this repository, TCP mode is the
 comfortable way to work on it:
 
 ```bash
-# 1. start your server (it must listen on 5009)
-./server/cpp_ls --port 5009
+# 1. start your server on the port the extension expects (5009 by default)
+./server/cpp_ls -c tcp --port 5009
 
 # 2. start VS Code with CPPLS_DEV set, so the client prefers TCP
 ```
@@ -110,17 +111,33 @@ Or launch *Run Extension (TCP dev server)* from `.vscode/launch.json`, which set
 `CPPLS_DEV=1` for you. Restart the server as often as you like and run
 `cppls: Restart Language Server` to reconnect — no window reload needed.
 
+> The server's own `--port` default is 5007; the extension's default is 5009.
+> Pass `--port 5009`, or set `cppls.server.port` / `CPPLS_DEV_PORT` to match.
+>
+> Today `cpp_ls -c tcp` serves a single client and exits when it disconnects, so
+> you have to start it again after the client reconnects.
+
+## Checking a server build
+
+```bash
+npm run verify:server    # drives server/cpp_ls over stdio and TCP, reports what works
+```
+
+It prints the advertised capabilities and `serverInfo`, checks that diagnostics
+reach the client, and confirms `shutdown`/`exit` end the session cleanly. Exit
+code `2` means no binary is present.
+
 ## Tests
 
 ```bash
 npm run test:unit   # pure logic: config, settings, server lookup, TCP probe, plan rendering
-npm test            # extension host tests: command registration + a real TCP handshake
+npm test            # extension host tests: activation, commands, and a real TCP handshake
 npm run lint
 ```
 
-The extension host tests do not depend on the C++ server: they start a miniature
-LSP peer on a spare port to prove the client can complete a handshake and
-exchange requests.
+The extension host tests do not depend on your server: they start a miniature
+LSP peer on a spare port to prove the client completes a handshake and exchanges
+requests. Use `npm run verify:server` to test the server itself.
 
 ## Project layout
 
@@ -135,20 +152,33 @@ src/
   plan.ts          the "how will we connect" decision, rendered for humans
   test/            extension host tests
 server/
-  cpp_ls[.exe]     the C++ server ← build output goes here (not committed)
+  cpp_ls[.exe]     the C++ language server binary
   README.md        the server side of the contract
+scripts/
+  verify-server.mjs  drives the binary and reports contract violations
 test/
   unit/            node:test unit tests
+  fixtures/        C++ files used by the contract checker
 ```
 
 ## Troubleshooting
 
-* **"Unable to locate the cppls language server"** — build `server/cpp_ls`, or
-  set `cppls.server.path`. `cppls: Show Server Info` lists every path that was
-  searched.
+* **Nothing happens at all** — the extension activates on C/C++ documents only.
+  Open a `.cpp` or `.h` file, then check the status bar (right hand side) for
+  `cppls`. If it is missing, run `cppls: Show Logs`; if that command does not
+  exist either, the extension is not installed in this window — start it with
+  <kbd>F5</kbd> (Extension Development Host) or install the VSIX.
+* **"Unable to locate the cppls language server"** — put the binary at
+  `server/cpp_ls` (`server/cpp_ls.exe` on Windows) or set `cppls.server.path`.
+  `cppls: Show Server Info` lists every path that was searched.
 * **The client keeps spawning a process although `CPPLS_DEV` is set** — nothing
   was listening on the port within `cppls.server.connectTimeout`. Run
-  `cppls: Check Development Server Port`; the log states the reason.
-* **The development server disconnects** — the client does not respawn it while
-  `CPPLS_DEV` is set; start the server again and run
-  `cppls: Restart Language Server`.
+  `cppls: Check Development Server Port`; the log states the reason. Remember
+  that the port must match what you passed to `-c tcp --port`.
+* **The development server disconnects and does not come back** — while
+  `CPPLS_DEV` is set the client deliberately does not respawn anything. Start the
+  server again and run `cppls: Restart Language Server`.
+* **The log says `client Other`** — the server did not recognise the client. It
+  reads `initialize.clientInfo`; the extension sends
+  `{"name": "vscode-cppls"}` and the VS Code language client identifies itself as
+  `Visual Studio Code`.

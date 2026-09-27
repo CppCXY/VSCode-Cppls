@@ -112,10 +112,19 @@ function requireServer(
 /** Supplies the configuration the client should use. */
 export type ConfigProvider = () => ServerConfig;
 
+/**
+ * Called with every server process right after it is spawned.
+ *
+ * Diagnostics only: the extension uses it to forward nothing, while tests tap
+ * the server's stderr so a start-up failure can be reported with its reason.
+ */
+export type SpawnObserver = (child: cp.ChildProcess) => void;
+
 /** Owns the `LanguageClient` instance, the spawned server processes and their lifecycle. */
 export class CpplsLanguageClient implements vscode.Disposable {
 	private client: LanguageClient | undefined;
 	private lastPlan: LaunchPlan | undefined;
+	private lastError: Error | undefined;
 	private readonly children = new Set<cp.ChildProcess>();
 	private readonly config: ConfigProvider;
 	private stopped = false;
@@ -131,6 +140,8 @@ export class CpplsLanguageClient implements vscode.Disposable {
 		 * inject a fixed configuration so they never touch the user's settings.
 		 */
 		config?: ConfigProvider,
+		/** Observes spawned server processes. Used by tests to capture stderr. */
+		private readonly onSpawn?: SpawnObserver,
 	) {
 		this.config = config ?? (() => readServerConfig());
 	}
@@ -138,6 +149,11 @@ export class CpplsLanguageClient implements vscode.Disposable {
 	/** The plan used for the most recent connection attempt, for logs and the status bar. */
 	public get currentPlan(): LaunchPlan | undefined {
 		return this.lastPlan;
+	}
+
+	/** Why the most recent start attempt failed, if it did. */
+	public get lastStartError(): Error | undefined {
+		return this.lastError;
 	}
 
 	/** Current client state, or `State.Stopped` before the first start. */
@@ -160,11 +176,14 @@ export class CpplsLanguageClient implements vscode.Disposable {
 		this.stopped = false;
 		try {
 			this.client = this.client ?? this.createClient();
+			// Trace level before starting: `setTrace` is safe on a stopped client
+			// and is picked up when the connection is created.
 			await this.applyTrace(this.client);
 			await this.client.start();
+			this.lastError = undefined;
 			return true;
 		} catch (error) {
-			this.lastPlan = undefined;
+			this.lastError = error instanceof Error ? error : new Error(String(error));
 			this.reportStartFailure(error);
 			return false;
 		}
@@ -336,6 +355,7 @@ export class CpplsLanguageClient implements vscode.Disposable {
 		child.stderr?.on('data', (chunk: Buffer | string) => {
 			this.logServerStderr(chunk.toString());
 		});
+		this.onSpawn?.(child);
 
 		if (!child.stdout || !child.stdin) {
 			child.kill();

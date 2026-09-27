@@ -12,3 +12,4 @@ server/cpp_ls.exe
 server/build/
 server/CMakeFiles/
 server/CMakeCache.txt
+.cppls

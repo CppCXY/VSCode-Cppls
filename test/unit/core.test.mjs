@@ -210,15 +210,22 @@ test('resolveServer returns undefined when the binary has not been built', () =>
 	assert.equal(serverPath.resolveServer(root, undefined, cleanEnv()), undefined);
 });
 
-test('this repository does not commit server binaries', () => {
-	// Guards against a stray binary being committed: the extension must report a
-	// missing server, not silently run something old.
-	const watched = [
-		path.join(EXTENSION_ROOT, 'server', 'cpp_ls'),
-		path.join(EXTENSION_ROOT, 'server', 'cpp_ls.exe'),
-	];
-	for (const candidate of watched) {
-		assert.equal(fs.existsSync(candidate), false, `${candidate} should not be committed`);
+test('a binary in server/ is found, and its absence is reported clearly', () => {
+	// The repository may or may not have `server/cpp_ls` built; either way the
+	// lookup must agree with what is on disk.
+	const bundledPath = path.join(EXTENSION_ROOT, 'server', serverPath.serverExecutableName());
+	const resolved = serverPath.resolveServer(EXTENSION_ROOT, undefined, cleanEnv());
+
+	if (fs.existsSync(bundledPath)) {
+		assert.ok(resolved, 'a binary on disk must resolve');
+		assert.equal(resolved.source, 'bundled');
+		assert.equal(resolved.command, bundledPath);
+	} else {
+		assert.equal(resolved, undefined, 'no binary and no configuration means nothing to run');
+		assert.ok(
+			serverPath.serverSearchPaths(EXTENSION_ROOT).includes(bundledPath),
+			'the missing binary must still be listed in the search paths for the error message',
+		);
 	}
 });
 

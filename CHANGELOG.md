@@ -27,3 +27,21 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   bundle.
 - Tests: `node:test` unit tests, plus extension host tests that register the
   commands and complete a real LSP handshake over TCP against a miniature peer.
+- `npm run verify:server` / `scripts/verify-server.mjs`: drives the real
+  `server/cpp_ls` over stdio and TCP and reports contract violations, with exit
+  code 2 when no binary is present so CI can skip.
+
+### Notes on the server contract
+
+Verified against `cpp_ls 0.1.0`:
+
+- `cpp_ls` with no arguments speaks LSP over stdio and completes the handshake,
+  `shutdown` and `exit` cleanly.
+- `cpp_ls -c tcp --port <n>` listens on TCP and completes the handshake.
+- The server's own default port is 5007 while the extension defaults to 5009, so
+  `--port 5009` (or a matching setting) is required.
+- TCP mode serves a single client and exits when it disconnects; the extension
+  probes the port before connecting, so a persistent listener would make the
+  development workflow smoother.
+- `textDocument/definition` currently answers `null`, and no diagnostics are
+  published for a file with a missing include.
