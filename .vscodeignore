@@ -1,9 +1,20 @@
+# Files that must never end up in the published extension.
+#
+# The shipped extension is `dist/extension.js` (esbuild bundles every runtime
+# dependency into it) plus the language contribution, the documentation and the
+# server binaries. Everything else is development only.
+
+# Development tooling and sources
 .vscode/**
 .vscode-test/**
+.github/**
 src/**
 test/**
+scripts/**
 out/**
 node_modules/**
+*.vsix
+.editorconfig
 .gitignore
 .gitattributes
 .yarnrc
@@ -13,4 +24,16 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+
+# Server: ship the binary and the contract doc only.
 server/README.md
+server/build/**
+server/CMakeFiles/**
+server/CMakeCache.txt
+
+# Artefacts produced by running the language server against this repository
+# (index summaries, caches, logs). These are rewritten at runtime and have no
+# business being packaged.
+.cppls/**
+**/.cppls/**
+*.log

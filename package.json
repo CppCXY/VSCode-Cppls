@@ -6,7 +6,20 @@
   "publisher": "cppls",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.91.0"
+    "vscode": "^1.138.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "The language server is spawned as a separate process from `server/cpp_ls`, which is an executable reached through `cppls.server.path`. In an untrusted workspace the extension only starts the bundled server and never runs a path from the workspace settings."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "cpp_ls needs a real file system to index the workspace."
+    }
   },
   "categories": [
     "Programming Languages"
@@ -163,7 +176,10 @@
     "pretest": "npm run compile && npm run package && npm run lint",
     "test": "vscode-test",
     "test:unit": "npm run compile && node --test \"test/unit/**/*.test.mjs\"",
-    "verify:server": "node scripts/verify-server.mjs"
+    "verify:server": "node scripts/verify-server.mjs",
+    "verify:bundle": "node scripts/check-bundle.mjs",
+    "vsix": "npm run package && vsce package --no-dependencies --out cppls.vsix",
+    "install:local": "npm run vsix && code --install-extension cppls.vsix --force"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -171,12 +187,11 @@
     "@types/vscode": "^1.138.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.0.0",
+    "@vscode/vsce": "^4.0.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.5.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.61.1"
-  },
-  "dependencies": {
+    "typescript-eslint": "^8.61.1",
     "vscode-jsonrpc": "^9.0.3",
     "vscode-languageclient": "^10.1.2"
   },

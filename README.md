@@ -74,8 +74,30 @@ The status bar shows the active mode: `$(radio-tower) cppls :5009` for TCP,
 
 ## Getting started
 
+**Requirement:** VS Code **1.138.0 or newer** (`engines.vscode` is `^1.138.0`,
+matching the newest published `@types/vscode`). The extension is developed and
+verified against VS Code 1.139.x stable.
+
+### Install the packaged extension
+
 ```bash
 npm install
+npm run vsix           # type check + esbuild bundle + vsce package → cppls.vsix
+code --install-extension cppls.vsix --force
+```
+
+Then reload the window (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> →
+*Developer: Reload Window*) and open a `.cpp` file.
+
+To install into a **remote, container or sandbox** window, the VSIX has to be
+installed *there* — in the remote window use *Extensions: Install from VSIX…*,
+or run `code --install-extension cppls.vsix --force` on the remote host. A
+desktop extension does not load in a browser-only VS Code (vscode.dev), because
+it needs a Node.js host to spawn the server process.
+
+### Run from source while developing
+
+```bash
 npm run compile        # tsc → out/ (also used by the tests)
 npm run package        # type check + esbuild → dist/extension.js (what VS Code loads)
 ```

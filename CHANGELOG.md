@@ -6,6 +6,24 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Packaging
+
+- `npm run vsix` builds the extension and produces `cppls.vsix`
+  (`npm run install:local` also installs it), so the packaged artefact can never
+  go stale again.
+- `engines.vscode` is `^1.138.0`, matching the newest published
+  `@types/vscode`. `vsce` refuses to package when the types are newer than the
+  declared engine, which silently prevented any `.vsix` from being produced.
+- The language client packages moved to `devDependencies`: `dist/extension.js`
+  is a self-contained esbuild bundle, so declaring runtime dependencies that are
+  absent from the VSIX was misleading.
+- `.vscodeignore` now excludes the `.cppls/**` index summaries, logs and
+  development tooling; the VSIX holds only the manifest, the bundle, the
+  language configuration, the docs and `server/cpp_ls`.
+- MIT `LICENSE` added.
+- `npm run verify:bundle` checks the packaged entry point exists, is CommonJS,
+  requires `vscode` from the host and actually loads and exports `activate()`.
+
 ### Added
 
 - Language client for C and C++ documents, based on `vscode-languageclient` 10.
