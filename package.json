@@ -83,7 +83,9 @@
             "keyword.operator.cpp"
           ],
           "modifier": [
-            "storage.modifier.cpp"
+            "storage.modifier.cpp",
+            "storage.type.cpp",
+            "keyword.other.cpp"
           ],
           "decorator": [
             "keyword.other.documentation.cpp",
