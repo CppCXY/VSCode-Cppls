@@ -377,3 +377,140 @@ test('describePlanDetails reports the endpoint of a TCP connection', () => {
 	assert.match(text, /127\.0\.0\.1:5009/);
 	assert.match(text, /connected/);
 });
+
+// ---------------------------------------------------------------------------
+// semantic tokens
+// ---------------------------------------------------------------------------
+//
+// The refinement is a pure function of the server's data and a legend, so it is
+// tested here rather than in the extension host. The two invariants below are
+// the ones a client cannot recover from: the protocol sends deltas, so a token
+// out of order or overlapping shifts *every token after it*.
+
+const semanticTokens = require('../../out/semanticTokens.js');
+
+/** One token, as the protocol's five numbers, from absolute positions. */
+function encode(previous, line, character, length, tokenType, modifiers = 0) {
+	const deltaLine = line - previous.line;
+	return {
+		line,
+		character,
+		data: [deltaLine, deltaLine === 0 ? character - previous.character : character, length, tokenType, modifiers],
+	};
+}
+
+test('the delta walk survives a round trip', () => {
+	// `struct Widget { int size; };` — a keyword, a type, a type and a variable, with a gap on each line so the
+	// deltas are not all zero.
+	const data = [
+		0, 0, 6, 12, 0, // `struct` at 0:0
+		0, 7, 6, 1, 0, //  `Widget` at 0:7
+		0, 10, 3, 1, 0, // `int` at 0:17
+		1, 4, 4, 6, 1, //  `size` at 1:4, a declaration
+	];
+
+	const decoded = semanticTokens.decodeSemanticTokens(data);
+	assert.deepEqual(
+		decoded.map((t) => [t.line, t.character, t.length, t.tokenType, t.modifiers]),
+		[
+			[0, 0, 6, 12, 0],
+			[0, 7, 6, 1, 0],
+			[0, 17, 3, 1, 0],
+			[1, 4, 4, 6, 1],
+		],
+	);
+
+	assert.deepEqual(semanticTokens.encodeSemanticTokens(decoded), data);
+});
+
+test('a refinement cannot reorder or overlap the answer', () => {
+	// The encoder is handed tokens out of order and with two sharing a start offset, which is what a rule that
+	// inserts something is liable to produce.
+	const decoded = [
+		{ line: 1, character: 4, length: 4, tokenType: 6, modifiers: 0 },
+		{ line: 0, character: 17, length: 3, tokenType: 1, modifiers: 0 },
+		{ line: 0, character: 0, length: 6, tokenType: 12, modifiers: 0 },
+		{ line: 0, character: 0, length: 2, tokenType: 13, modifiers: 0 },
+	];
+
+	const data = semanticTokens.encodeSemanticTokens(decoded);
+	const back = semanticTokens.decodeSemanticTokens(data);
+
+	// Ordered by position, and the duplicate start offset collapsed to the first.
+	assert.deepEqual(
+		back.map((t) => [t.line, t.character]),
+		[
+			[0, 0],
+			[0, 17],
+			[1, 4],
+		],
+	);
+	assert.equal(back[0].length, 6, 'the first claim on an offset wins');
+
+	// Non-overlapping, which is the property the protocol needs and the one a client cannot repair.
+	for (let at = 1; at < back.length; at++) {
+		const previous = back[at - 1];
+		const ordered =
+			back[at].line > previous.line ||
+			(back[at].line === previous.line && back[at].character >= previous.character + previous.length);
+		assert.ok(
+			ordered,
+			`token ${at} at ${back[at].line}:${back[at].character} overlaps ${previous.line}:${previous.character}+${previous.length}`,
+		);
+	}
+});
+
+test('a zero length token is dropped rather than sent', () => {
+	const data = [0, 0, 0, 12, 0, 0, 5, 3, 1, 0];
+	const refined = semanticTokens.refineSemanticTokens(data, semanticTokens.SERVER_LEGEND, { keyword: null });
+
+	// The keyword was dropped, the type is untouched, and the walk is still valid.
+	assert.deepEqual(refined, [0, 5, 3, 1, 0]);
+});
+
+test('a remap reuses a type from the legend and never invents one', () => {
+	const data = [0, 0, 6, 12, 0];
+	const legend = semanticTokens.SERVER_LEGEND;
+
+	// `keyword` (12) drawn as `type` (1) — the target is in the legend, so the number changes.
+	const remapped = semanticTokens.refineSemanticTokens(data, legend, { keyword: 'type' });
+	assert.equal(remapped[3], legend.indexOf('type'));
+
+	// A target the legend does not hold is refused, and the server's own type is kept: sending a number the client
+	// cannot map is worse than sending the colour the server chose.
+	const refused = semanticTokens.refineSemanticTokens(data, legend, { keyword: 'not-in-the-legend' });
+	assert.deepEqual(refused, data);
+});
+
+test('the legend this client assumes is the one the server advertises', () => {
+	// The list is written twice — here and in `builder.rs` — so this states what a mismatch costs. It is the same
+	// check the extension logs at start-up.
+	assert.equal(semanticTokens.verifyLegend(semanticTokens.SERVER_LEGEND), undefined);
+
+	assert.match(semanticTokens.verifyLegend(['namespace', 'type']), /advertises 2 token type/);
+	assert.match(
+		semanticTokens.verifyLegend([...semanticTokens.SERVER_LEGEND.slice(0, -1), 'something-else']),
+		/calls it `decorator`/,
+	);
+});
+
+test('the types this extension styles are the types the server can send', () => {
+	// Every scope name in `package.json`'s `semanticTokenScopes` has to be a type the server can actually emit, or
+	// the entry styles a token that never arrives. `decorator` is the one this extension exists for.
+	const pkg = require('../../package.json');
+	const scoped = new Set();
+	for (const entry of pkg.contributes.semanticTokenScopes) {
+		for (const name of Object.keys(entry.scopes)) {
+			scoped.add(name);
+		}
+	}
+
+	for (const name of scoped) {
+		assert.ok(
+			semanticTokens.SERVER_LEGEND.includes(name),
+			`\`${name}\` is styled by package.json but the server never sends it`,
+		);
+	}
+	assert.ok(scoped.has('decorator'), 'the Doxygen scope mapping must be present');
+});
+

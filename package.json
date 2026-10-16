@@ -34,6 +34,111 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "semanticTokenScopes": [
+      {
+        "language": "cpp",
+        "scopes": {
+          "namespace": [
+            "entity.name.namespace.cpp"
+          ],
+          "type": [
+            "entity.name.type.cpp"
+          ],
+          "typeParameter": [
+            "entity.name.type.template.cpp"
+          ],
+          "enum": [
+            "entity.name.type.enum.cpp"
+          ],
+          "enumMember": [
+            "variable.other.enummember.cpp"
+          ],
+          "class": [
+            "entity.name.type.class.cpp"
+          ],
+          "function": [
+            "entity.name.function.cpp"
+          ],
+          "method": [
+            "entity.name.function.member.cpp"
+          ],
+          "property": [
+            "variable.other.property.cpp"
+          ],
+          "variable": [
+            "variable.other.readwrite.cpp",
+            "entity.name.variable.cpp"
+          ],
+          "parameter": [
+            "variable.parameter.cpp"
+          ],
+          "macro": [
+            "entity.name.function.preprocessor.cpp"
+          ],
+          "keyword": [
+            "keyword.control.cpp",
+            "keyword.cpp"
+          ],
+          "operator": [
+            "keyword.operator.cpp"
+          ],
+          "modifier": [
+            "storage.modifier.cpp"
+          ],
+          "decorator": [
+            "keyword.other.documentation.cpp",
+            "comment.block.documentation.cpp"
+          ]
+        }
+      },
+      {
+        "language": "c",
+        "scopes": {
+          "namespace": [
+            "entity.name.namespace.c"
+          ],
+          "type": [
+            "entity.name.type.c"
+          ],
+          "enum": [
+            "entity.name.type.enum.c"
+          ],
+          "enumMember": [
+            "variable.other.enummember.c"
+          ],
+          "function": [
+            "entity.name.function.c"
+          ],
+          "property": [
+            "variable.other.property.c"
+          ],
+          "variable": [
+            "variable.other.readwrite.c",
+            "entity.name.variable.c"
+          ],
+          "parameter": [
+            "variable.parameter.c"
+          ],
+          "macro": [
+            "entity.name.function.preprocessor.c"
+          ],
+          "keyword": [
+            "keyword.control.c",
+            "keyword.c"
+          ],
+          "operator": [
+            "keyword.operator.c"
+          ],
+          "modifier": [
+            "storage.modifier.c"
+          ],
+          "decorator": [
+            "keyword.other.documentation.c",
+            "comment.block.documentation.c"
+          ]
+        }
+      }
+    ],
     "commands": [
       {
         "command": "cppls.restartServer",

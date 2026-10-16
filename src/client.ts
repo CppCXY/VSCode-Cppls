@@ -29,6 +29,7 @@ import { StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node';
 import { isDevModeEnabled } from './config';
 import { connectTcp, probeTcpPort } from './connection';
 import { LaunchPlan, SpawnPlan, TcpPlan, describePlan } from './plan';
+import { SERVER_LEGEND, refineSemanticTokens, verifyLegend } from './semanticTokens';
 import { ResolvedServer, resolveServer, serverSearchPaths } from './serverPath';
 import { ServerConfig, readServerConfig } from './settings';
 
@@ -273,10 +274,59 @@ export class CpplsLanguageClient implements vscode.Disposable {
 				clientInfo: { name: 'vscode-cppls', version: this.extensionVersion },
 			},
 			errorHandler: this.createErrorHandler(),
+			middleware: this.createMiddleware(),
 			connectionOptions: { maxRestartCount: 3 },
 		};
 
 		return new LanguageClient('cppls', 'Cpp Language Server', serverOptions, clientOptions);
+	}
+
+	/**
+	 * **The VS Code specific half of semantic tokens** — see `semanticTokens.ts` for why a client refines at all.
+	 *
+	 * The middleware is the right seam: `next` is the language client's own request, already decoded into a
+	 * `vscode.SemanticTokens`, so this neither speaks the protocol nor duplicates the client's work. It sits between
+	 * the server's answer and the editor, which is exactly where a correction that depends on *this* editor belongs.
+	 *
+	 * Failures are swallowed on purpose. A refinement is a cosmetic pass over an answer that was already valid, and
+	 * an exception here would replace a correctly coloured file with the language client's error handling — the
+	 * worst possible trade for a rule that only changes a shade.
+	 */
+	private createMiddleware(): LanguageClientOptions['middleware'] {
+		return {
+			provideDocumentSemanticTokens: async (document, token, next) => {
+				const tokens = await next(document, token);
+				if (!tokens) {
+					return tokens;
+				}
+
+				try {
+					const data = refineSemanticTokens(Array.from(tokens.data), SERVER_LEGEND);
+					return new vscode.SemanticTokens(new Uint32Array(data), tokens.resultId);
+				} catch (error) {
+					this.channel.warn(`Semantic token refinement failed; the server's own answer is used: ${toMessage(error)}`);
+					return tokens;
+				}
+			},
+		};
+	}
+
+	/**
+	 * Reports a legend mismatch **once per connection**, at start-up rather than on every answer.
+	 *
+	 * Not a correction: see `verifyLegend` for why a mismatch costs an unrefined colour and never a wrong one. This
+	 * exists so that cost is a line in the log instead of a "the colours look a bit off" nobody can trace.
+	 */
+	public verifyServerLegend(advertised: readonly string[]): void {
+		const problem = verifyLegend(advertised);
+		if (problem) {
+			this.channel.warn(
+				`Semantic token legend mismatch: ${problem}. Refinements that match a type by name will not apply; ` +
+					'see src/semanticTokens.ts (SERVER_LEGEND) and builder.rs (TypeKind::ALL).',
+			);
+		} else {
+			this.channel.debug(`Semantic token legend matches (${advertised.length} types).`);
+		}
 	}
 
 	/**

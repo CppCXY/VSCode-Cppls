@@ -8,7 +8,7 @@
  */
 
 import * as vscode from 'vscode';
-import { State } from 'vscode-languageclient/node';
+import { LanguageClient, State } from 'vscode-languageclient/node';
 
 import { CpplsLanguageClient } from './client';
 import {
@@ -72,11 +72,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		const languageClient = client?.languageClient;
 		if (languageClient) {
 			context.subscriptions.push(
-				languageClient.onDidChangeState(() => updateStatusBar()),
+				languageClient.onDidChangeState(() => {
+					updateStatusBar();
+					reportSemanticTokenLegend(languageClient);
+				}),
 			);
+			reportSemanticTokenLegend(languageClient);
 		}
 		updateStatusBar();
 	});
+}
+
+/**
+ * **Checks the one assumption the client's refinement makes**, once per connection.
+ *
+ * A semantic token's type is a number indexing the legend the server advertised in `initialize`, and the extension
+ * holds a copy of that list by name so a refinement can say "this type" rather than "type 11". The two are written
+ * in different repositories, so they can drift. A drift costs an *unrefined* colour and never a wrong one — see
+ * `verifyLegend` — and this turns that silent cost into a line in the log.
+ */
+function reportSemanticTokenLegend(languageClient: LanguageClient): void {
+	const legend = languageClient.initializeResult?.capabilities?.semanticTokensProvider?.legend;
+	if (!legend || !Array.isArray(legend.tokenTypes)) {
+		return;
+	}
+	client?.verifyServerLegend(legend.tokenTypes);
 }
 
 export function deactivate(): Thenable<void> | undefined {
