@@ -38,6 +38,18 @@ const vscodeStub = require(vscodeStubPath);
 
 const EXTENSION_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
+/** The extension's manifest, parsed once — the file the extension host reads to decide what it contributes. */
+const MANIFEST = JSON.parse(
+	fs.readFileSync(path.join(EXTENSION_ROOT, 'package.json'), 'utf8'),
+);
+
+/** The `contributes` section, or a failure that says which file was read. */
+function contributes() {
+	const contributes = MANIFEST.contributes;
+	assert.ok(contributes, 'package.json has a contributes section');
+	return contributes;
+}
+
 /** Environment without any CPPLS_* variables. */
 function cleanEnv(extra = {}) {
 	const env = { ...process.env };
@@ -443,3 +455,65 @@ test('every legend name the server can send is styled', () => {
 	}
 });
 
+test('the cuda language claims .cu and .cuh, and is styled by a grammar of its own', () => {
+	// **A `.cu` file has no language id without this entry**, and a document with no language id is one the client
+	// never claims: the server is never asked a single question about it. That was the report — the extension knew
+	// `cpp` and `c` only.
+	const cuda = contributes().languages.find((language) => language.id === 'cuda');
+	assert.ok(cuda, 'a `cuda` language is contributed');
+	assert.deepEqual(cuda.extensions, ['.cu', '.cuh']);
+	assert.equal(cuda.configuration, './language-configuration.json');
+
+	// **The client claims those documents.** Both schemes, because an untitled CUDA buffer is a scratchpad a reader
+	// pastes into; a selector that named only `file` would leave it unanalysed.
+	const selector = settings.DOCUMENT_SELECTOR;
+	for (const scheme of ['file', 'untitled']) {
+		assert.ok(
+			selector.some((entry) => entry.scheme === scheme && entry.language === 'cuda'),
+			`the selector claims ${scheme} cuda documents: ${JSON.stringify(selector)}`,
+		);
+	}
+
+	// **A grammar, because VS Code ships none for CUDA.** Without it the file is plain text between the semantic
+	// tokens the server sends: no keyword, string or comment colour at all.
+	const grammar = contributes().grammars.find((entry) => entry.language === 'cuda');
+	assert.ok(grammar, 'a grammar is contributed for `cuda`');
+	assert.equal(grammar.scopeName, 'source.cuda');
+	const path_ = path.join(EXTENSION_ROOT, grammar.path);
+	const loaded = JSON.parse(fs.readFileSync(path_, 'utf8'));
+	assert.equal(loaded.scopeName, 'source.cuda', 'and the file it names declares that scope');
+	const patterns = loaded.patterns.map((pattern) => pattern.include ?? pattern.match);
+	assert.ok(
+		patterns.includes('source.cpp'),
+		'the C++ grammar does the rest: ' + JSON.stringify(patterns),
+	);
+	// The CUDA layer is matched **before** the C++ grammar, or every qualifier would be an identifier.
+	const cpp = patterns.indexOf('source.cpp');
+	assert.ok(cpp > 0, 'the C++ grammar is the last pattern');
+	for (const pattern of loaded.patterns.slice(0, cpp)) {
+		assert.ok(!pattern.include, 'and the layer above it has no include of its own');
+	}
+	assert.ok(
+		loaded.patterns.slice(0, cpp).some((pattern) => pattern.match.includes('__global__')),
+		'the placement qualifiers are one of them',
+	);
+	assert.ok(
+		loaded.patterns.slice(0, cpp).some((pattern) => pattern.match.includes('<<<')),
+		'and the launch brackets are another',
+	);
+});
+
+test('every semantic token type the cuda entries style is one the server can send', () => {
+	// The legend test above covers `cpp`; a language whose scopes were copied needs the same promise, or the first
+	// token type someone adds is styled in C++ files and uncoloured in CUDA ones.
+	const styled = contributes()
+		.semanticTokenScopes.filter((entry) => entry.language === 'cuda')
+		.flatMap((entry) => Object.keys(entry.scopes));
+	const cpp = contributes().semanticTokenScopes.find((entry) => entry.language === 'cpp');
+	assert.ok(cpp, 'the cpp entry exists');
+	assert.deepEqual(
+		styled.sort(),
+		Object.keys(cpp.scopes).sort(),
+		'cuda styles the same set of token types as cpp',
+	);
+});

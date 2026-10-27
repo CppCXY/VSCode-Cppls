@@ -34,6 +34,17 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "grammars": [
+      {
+        "language": "cuda",
+        "scopeName": "source.cuda",
+        "path": "./syntaxes/cuda.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.preprocessor.cpp": "cpp",
+          "source.cpp": "cpp"
+        }
+      }
+    ],
     "semanticTokenScopes": [
       {
         "language": "cpp",

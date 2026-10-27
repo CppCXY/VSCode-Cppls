@@ -1,0 +1,29 @@
+{
+	"name": "CUDA C++",
+	"scopeName": "source.cuda",
+	"comment": "CUDA is C++ plus a layer of its own: the placement qualifiers, the launch brackets, and the built-in types nvcc's headers declare. Everything else is C++, so the last pattern hands the text to the built-in `source.cpp` grammar rather than restating it — one grammar for C++ and one small file for the layer on top.",
+	"patterns": [
+		{
+			"comment": "The placement qualifiers — a specifier the language does not have. `__launch_bounds__(…)` and its family are written with arguments; the name is what carries the meaning.",
+			"match": "\\b(__global__|__device__|__host__|__shared__|__constant__|__managed__|__grid_constant__|__restrict__|__launch_bounds__|__maxnreg__|__align__|__cluster_dims__|__forceinline__|__noinline__|__inline__)\\b",
+			"name": "storage.modifier.qualifier.cuda"
+		},
+		{
+			"comment": "The launch brackets: `k<<<grid, block>>>(args)`. They are not C++ at all, and giving them their own colour is what makes a launch readable next to the shifts it lexes as.",
+			"match": "<<<|>>>",
+			"name": "keyword.operator.launch.cuda"
+		},
+		{
+			"comment": "The built-in variables and vector types — declared by `cuda_runtime.h` and `vector_types.h`, so they belong to the toolkit rather than to the grammar; highlighted because a reader meets them before reading either header.",
+			"match": "\\b(threadIdx|blockIdx|blockDim|gridDim|warpSize)\\b",
+			"name": "support.variable.builtin.cuda"
+		},
+		{
+			"match": "\\b(dim3|char[1-4]|uchar[1-4]|short[1-4]|ushort[1-4]|int[1-4]|uint[1-4]|long[1-4]|ulong[1-4]|longlong[1-4]|ulonglong[1-4]|float[1-4]|double[1-4]|__half2?|__nv_bfloat16|__nv_bfloat162)\\b",
+			"name": "support.type.builtin.cuda"
+		},
+		{
+			"include": "source.cpp"
+		}
+	]
+}

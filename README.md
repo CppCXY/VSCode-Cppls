@@ -4,10 +4,38 @@ A VS Code extension that runs a **C++ language server** over the Language Server
 Protocol (LSP). The server binary lives at `server/cpp_ls`
 (`server/cpp_ls.exe` on Windows).
 
-> **The extension only activates for C/C++ documents.** If you open a folder that
-> contains no `.cpp`/`.h` file, nothing happens: no status bar item, no commands,
-> no server process. Open a `.cpp` file (or run any `cppls:` command from the
-> Command Palette) to start it.
+> **The extension only activates for C/C++/CUDA documents.** If you open a folder
+> that contains no `.cpp`/`.h`/`.cu` file, nothing happens: no status bar item, no
+> commands, no server process. Open one of those files (or run any `cppls:` command
+> from the Command Palette) to start it.
+
+## CUDA
+
+`.cu` and `.cuh` documents are claimed by this extension and analysed as **CUDA**: a `.cu` file is C++ plus a
+layer of its own, and the server reads that layer — the placement qualifiers (`__global__`, `__device__`, …) and
+the launch brackets of `kernel<<<grid, block>>>(args)` — only when the project says it is CUDA.
+
+Two things make the layer visible, and both are opt-in by nature:
+
+1. **The grammar**, contributed as `source.cuda`: the CUDA keywords and the launch brackets are matched before the
+   built-in C++ grammar, so a `.cu` file is coloured instead of being plain text between the server's semantic
+   tokens. It needs no configuration.
+2. **The toolkit**, which is where `dim3`, `threadIdx` and `float4` come from — they are *declarations in nvcc's
+   headers*, not keywords, so nothing can colour or resolve them until those headers are on the include path. A
+   project states that in its own `.cppls.toml`:
+
+```toml
+# .cppls.toml, in the workspace root
+[compile.cuda]
+enable = true                                       # read this project as CUDA even without an nvcc in the database
+toolkit = "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.4"
+host_compiler = "cl"                                # the host dialect: cl (MSVC), or g++/clang++ (GNU)
+```
+
+A project whose build has a compile database with `nvcc` commands needs none of this — the toolchain says it, and
+`enable` exists for the machine where no database is available. `__CUDA_ARCH__` is deliberately not a setting: it is
+defined only in the device compilation pass, so defining it for a whole file would send host code down a branch a
+real compiler never takes.
 
 ## How the server is reached
 
