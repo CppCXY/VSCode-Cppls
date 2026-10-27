@@ -37,6 +37,25 @@ A project whose build has a compile database with `nvcc` commands needs none of 
 defined only in the device compilation pass, so defining it for a whole file would send host code down a branch a
 real compiler never takes.
 
+### Living next to the Microsoft C/C++ extension
+
+`.cu` files are claimed by **two** extensions on most machines: this one (`cuda`) and `ms-vscode.cpptools`
+(`cuda-cpp`). Whichever of the two wins the language assignment, this extension's client claims the document — the
+selector names both ids, because a client that named only `cuda` was never attached on a machine with the C/C++
+extension installed. The symptom was "most of the highlighting is missing": the keywords coloured by *their* grammar
+and every name plain, since no semantic token ever arrived.
+
+If you want this server to be the only one answering for CUDA, turn that extension's IntelliSense off (its syntax
+colouring can stay):
+
+```jsonc
+// settings.json
+"C_Cpp.intelliSenseEngine": "disabled"
+```
+
+Nothing else is needed: the grammar this extension contributes colours `.cu`/`.cuh` on its own, and every other
+feature — hover, definition, references, completion, inlay hints, semantic tokens — comes from the language server.
+
 ## How the server is reached
 
 The extension supports two transports and picks between them at connect time, so

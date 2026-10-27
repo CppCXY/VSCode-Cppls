@@ -464,14 +464,19 @@ test('the cuda language claims .cu and .cuh, and is styled by a grammar of its o
 	assert.deepEqual(cuda.extensions, ['.cu', '.cuh']);
 	assert.equal(cuda.configuration, './language-configuration.json');
 
-	// **The client claims those documents.** Both schemes, because an untitled CUDA buffer is a scratchpad a reader
-	// pastes into; a selector that named only `file` would leave it unanalysed.
+	// **The client claims those documents under both ids.** `cuda` is this extension's, and `cuda-cpp` is the id the
+	// Microsoft C/C++ extension contributes for the same `.cu` files — which it wins whenever it is installed. A
+	// selector that claimed only `cuda` was never attached to the document on such a machine, and the report was
+	// exactly that: the keywords coloured by that extension's grammar and every name plain, because no semantic token
+	// ever arrived. Both schemes too: an untitled CUDA buffer is a scratchpad a reader pastes into.
 	const selector = settings.DOCUMENT_SELECTOR;
 	for (const scheme of ['file', 'untitled']) {
-		assert.ok(
-			selector.some((entry) => entry.scheme === scheme && entry.language === 'cuda'),
-			`the selector claims ${scheme} cuda documents: ${JSON.stringify(selector)}`,
-		);
+		for (const language of ['cuda', 'cuda-cpp']) {
+			assert.ok(
+				selector.some((entry) => entry.scheme === scheme && entry.language === language),
+				`the selector claims ${scheme} ${language} documents: ${JSON.stringify(selector)}`,
+			);
+		}
 	}
 
 	// **A grammar, because VS Code ships none for CUDA.** Without it the file is plain text between the semantic
@@ -506,14 +511,16 @@ test('the cuda language claims .cu and .cuh, and is styled by a grammar of its o
 test('every semantic token type the cuda entries style is one the server can send', () => {
 	// The legend test above covers `cpp`; a language whose scopes were copied needs the same promise, or the first
 	// token type someone adds is styled in C++ files and uncoloured in CUDA ones.
-	const styled = contributes()
-		.semanticTokenScopes.filter((entry) => entry.language === 'cuda')
-		.flatMap((entry) => Object.keys(entry.scopes));
 	const cpp = contributes().semanticTokenScopes.find((entry) => entry.language === 'cpp');
 	assert.ok(cpp, 'the cpp entry exists');
-	assert.deepEqual(
-		styled.sort(),
-		Object.keys(cpp.scopes).sort(),
-		'cuda styles the same set of token types as cpp',
-	);
+	for (const language of ['cuda', 'cuda-cpp']) {
+		const styled = contributes()
+			.semanticTokenScopes.filter((entry) => entry.language === language)
+			.flatMap((entry) => Object.keys(entry.scopes));
+		assert.deepEqual(
+			styled.sort(),
+			Object.keys(cpp.scopes).sort(),
+			`${language} styles the same set of token types as cpp`,
+		);
+	}
 });

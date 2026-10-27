@@ -48,10 +48,19 @@ export const DOCUMENT_SELECTOR: DocumentSelector = [
 	// and adds the placement qualifiers (`__global__`) and the launch brackets (`k<<<g, b>>>(args)`). The server reads
 	// those only when the project's toolchain is `nvcc` or `[compile.cuda]` says so, so claiming these documents costs a
 	// C++ project nothing.
+	//
+	// **Two language ids, and the second one is the reported bug.** `cuda` is ours (the language this extension
+	// contributes, with its own grammar and configuration). `cuda-cpp` is the id the **Microsoft C/C++ extension**
+	// contributes for the same `.cu` files, and it wins the assignment whenever that extension is installed — which it
+	// is on most machines that also have this one. A client that claimed only `cuda` was therefore never attached to
+	// the document: no semantic tokens, no hover, and a reader seeing "most of the highlighting is missing" — the
+	// keywords coloured by that extension's grammar, every name plain. clangd claims `cuda-cpp` for the same reason.
 	{ scheme: 'file', language: 'cuda' },
+	{ scheme: 'file', language: 'cuda-cpp' },
 	{ scheme: 'untitled', language: 'c' },
 	{ scheme: 'untitled', language: 'cpp' },
 	{ scheme: 'untitled', language: 'cuda' },
+	{ scheme: 'untitled', language: 'cuda-cpp' },
 ];
 
 /** Reads the extension configuration, applying defaults and environment overrides. */
