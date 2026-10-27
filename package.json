@@ -6,6 +6,14 @@
   "author": "CppCXY",
   "publisher": "CppCXY",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CppCXY/VSCode-Cppls.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CppCXY/VSCode-Cppls/issues"
+  },
+  "homepage": "https://github.com/CppCXY/VSCode-Cppls#readme",
   "engines": {
     "vscode": "^1.138.0"
   },

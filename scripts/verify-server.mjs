@@ -207,29 +207,48 @@ async function checkSession(channel, { expectDiagnostics }) {
 	console.log(`  serverInfo   : ${JSON.stringify(initialize.serverInfo)}`);
 
 	channel.notify('initialized', {});
-
 	if (expectDiagnostics) {
+		// **Diagnostics are pulled, not pushed.** The server deleted its `textDocument/publishDiagnostics` half
+		// (`cpp_ls` commit `d5fd21e`): a client asks `textDocument/diagnostic` and gets a report, so a checker that
+		// waited for a notification was waiting for a message this server no longer sends — and, since CI did not run
+		// this script, nobody noticed. What a client needs is the report, so that is what is checked.
 		const text = fs.readFileSync(FIXTURE, 'utf8');
 		channel.notify('textDocument/didOpen', {
 			textDocument: { uri: FIXTURE_URI, languageId: 'cpp', version: 1, text },
 		});
-		try {
-			const published = await channel.waitFor(
-				(message) =>
-					message.method === 'textDocument/publishDiagnostics' && message.params?.uri === FIXTURE_URI,
-				'textDocument/publishDiagnostics',
-				15000,
-			);
-			const count = published.params.diagnostics?.length ?? 0;
+
+		// The file is queued for reading by `didOpen`, and a report asked before the index has it answers "nothing
+		// known yet" — which is not a failure, so ask until the answer arrives or the deadline passes.
+		const deadline = Date.now() + 15000;
+		let report;
+		let lastError;
+		while (Date.now() < deadline) {
+			try {
+				report = await channel.request('textDocument/diagnostic', {
+					textDocument: { uri: FIXTURE_URI },
+				});
+				if (report?.items?.length > 0) {
+					break;
+				}
+			} catch (error) {
+				lastError = error;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 250));
+		}
+
+		if (lastError && !report) {
+			warn(`the diagnostic request failed: ${lastError.message}`);
+		} else if (!report || typeof report !== 'object') {
+			warn('textDocument/diagnostic answered no report — an object with `items` is what a client requires');
+		} else {
+			const count = report.items?.length ?? 0;
 			console.log(`  diagnostics  : ${count} for ${path.relative(ROOT, FIXTURE)}`);
 			if (count === 0) {
 				warn(
-					'the server published an empty diagnostic set for a file whose include ' +
-						'does not exist — the editor will show no problems for it',
+					'the report is empty for a file whose include does not exist — the editor will show no problems ' +
+						'for it (a report that arrives before the file is read is legitimately empty)',
 				);
 			}
-		} catch (error) {
-			warn(`no diagnostics arrived: ${error.message}`);
 		}
 	}
 

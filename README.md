@@ -1,243 +1,225 @@
 # cppls — C/C++ language support for VS Code
 
-A VS Code extension that runs a **C++ language server** over the Language Server
-Protocol (LSP). The server binary lives at `server/cpp_ls`
-(`server/cpp_ls.exe` on Windows).
+A C and C++ language server for VS Code, written from scratch in Rust. No compiler daemon, no
+`compile_commands.json` required, no second syntax engine: one server that indexes the project, answers the
+questions an editor asks, and speaks the Language Server Protocol.
 
-> **The extension only activates for C/C++/CUDA documents.** If you open a folder
-> that contains no `.cpp`/`.h`/`.cu` file, nothing happens: no status bar item, no
-> commands, no server process. Open one of those files (or run any `cppls:` command
-> from the Command Palette) to start it.
+```text
+completion · hover · signature help · go to definition · type definition · implementation · references
+document highlight · rename · call hierarchy · document symbols · workspace symbols · folding · selection range
+formatting (document and range) · inlay hints · semantic tokens · code actions · diagnostics · #include links
+```
 
-## CUDA
+It analyses the text the editor has, not only what is saved — completion and hover work in a file that has never
+compiled, and a half-typed line does not stop the rest of the translation unit from resolving.
+
+## Features
+
+| Feature | What it gives you |
+| --- | --- |
+| **Completion** | Members after `.`/`->`/`::`, names in scope, keywords, `#include` paths, macro names and their parameters |
+| **Hover** | The declaration and its type, a macro's body, an enumerator's value, the value of a constant |
+| **Signature help** | The parameter under the cursor is picked out of the list |
+| **Go to definition** | Through macros, aliases, `auto`, overloads, template instantiations and the standard library |
+| **Type definition / implementation** | The class behind a `unique_ptr`, the override behind a virtual call |
+| **References, rename** | Project-wide, including names reached only through an include |
+| **Call hierarchy** | Who calls this function, and what it calls |
+| **Semantic tokens** | Names are coloured by what they *are* — a type, a function, a member, a macro — not by how they look |
+| **Inlay hints** | Parameter names inside a call: `scale(count: 3, factor: 0.5)` |
+| **Formatting** | Whole document and selection, built on the same parser |
+| **Code actions** | `source.include`: add the header that declares the name under the cursor, when it does not resolve |
+| **Diagnostics** | Parse errors and semantic checks, pulled by the editor (`textDocument/diagnostic`) |
+| **Document links** | Every `#include` is a clickable link |
+
+### Diagnostics
+
+Parse errors, plus checks a compiler would not tell you while you type:
+
+```text
+argument-count  parameter-type  assign-type  undefined-field  return-type-mismatch  missing-return
+access-invisible  assignment-in-condition  include-not-found  macro-redefined  macro-parentheses
+unused  unnecessary-branch  simplify-boolean-expr  else-after-return  braces-around-statements
+c-style-cast  use-auto  use-nullptr  use-override  implicit-bool-conversion  concept-not-satisfied
+module-note
+```
+
+Each rule has a stable kebab-case code and can be turned off individually — see [`[diagnostics]`](#cpplstoml). A file
+whose includes have not been read yet reports nothing rather than guessing: the diagnostic arrives when the index can
+justify it.
+
+## Supported files
+
+```text
+C        .c  .h
+C++      .cc .cpp .cxx .c++ .hpp .hh .hxx .h++ .inl .ipp .tpp .txx .ixx .cppm .ccm .cxxm
+CUDA     .cu .cuh
+```
+
+Any other file reached through a `#include` is analysed too, whatever it is called — that is how a compiler finds a
+header, so it is how the server finds one.
+
+## Getting started
+
+1. **Install the extension.** From the marketplace, or from a `.vsix`: `code --install-extension cppls.vsix`.
+2. **Open a folder.** The server starts with the first C/C++ file and indexes the workspace in the background. The
+   status bar shows how much is left, and goes away when the index can answer questions about every file.
+3. **Tell it how the project is built**, when it can be told. A `compile_commands.json` is read where CMake puts it
+   (`CMakeLists.txt` plus `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`), and a compiler on `PATH` is asked for its system
+   include paths and predefined macros. Without either the server still works: includes resolve relative to the file,
+   and — with `[compile].fuzzy_includes` on, which is the default when there is no database — a header nothing could
+   place is looked for inside the project.
+
+The server is a separate process, bundled with the extension, so nothing else has to be installed.
+
+## Configuration
+
+### VS Code settings
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `cppls.server.path` | `""` | Path to the `cpp_ls` executable. Empty uses the bundled one. |
+| `cppls.server.args` | `[]` | Extra arguments for the server process. |
+| `cppls.trace.server` | `off` | LSP traffic in the `cppls (LSP trace)` output channel. |
+| `cppls.revealOutputChannelOnActivate` | `false` | Show the `cppls` output channel as soon as the server starts. |
+| `cppls.server.launchMode` | `auto` | How the server is reached — see [Development](#development). |
+
+### `.cppls.toml`
+
+A project's own answers, in a file at the workspace root. Every section is optional; a key that is present wins over
+what discovery worked out, and unknown keys are reported rather than silently ignored.
+
+```toml
+# Which files are the project's.
+[workspace]
+exclude = ["build/**", "3rd/**"]            # globs the analysis must not read
+source_extensions = ["cuh", "ipp"]          # added to the engine's own list
+
+# How it is built, when discovery cannot work it out.
+[compile]
+database = "build/compile_commands.json"    # where the compile database is (relative or absolute)
+compiler = "clang++"                        # "auto" (or absent) leaves it to the discovery order
+standard = "c++20"                          # the project-wide -std=, inherited by every target
+args = ["-DFEATURE=1", "-Iinclude"]         # the project's own flags, *instead of* the compile database's
+extra_args = ["-Wall"]                      # appended to whatever won
+remove_args = ["-Werror"]                   # dropped from whichever set won, by whole spelling
+fuzzy_includes = true                       # look for unplaced headers inside the project (default: on without a database)
+
+[[compile.target]]                          # a target that differs from the project
+name = "embedded"
+standard = "c++17"
+args = ["-mcpu=cortex-m4"]
+
+# The index.
+[index]
+cache_dir = ".cppls"                        # where summaries are cached, relative to the root
+max_files = 10000                           # bound on the scan (this is the default)
+
+# What is reported, and when.
+[diagnostics]
+enable = []                                 # only these rule codes, if non-empty
+disable = ["unused"]                        # and never these
+
+[hover]
+enable = true
+
+# The language this project's messages are written in.
+locale = "zh-CN"
+```
+
+### CUDA
 
 `.cu` and `.cuh` documents are analysed as **CUDA**: a `.cu` file is C++ plus a layer of its own, and the server reads
 that layer — the placement qualifiers (`__global__`, `__device__`, …) and the launch brackets of
 `kernel<<<grid, block>>>(args)` — only when the project says it is CUDA.
 
-**VS Code already owns the two halves that are not the server's job.** Its built-in `cpp` extension contributes the
-`cuda-cpp` language for `.cu`/`.cuh` and the `source.cuda-cpp` grammar (which is the C++ grammar plus CUDA bits), so
-this extension contributes neither: it **claims** `cuda-cpp` in its document selector, and everything else — names,
-members, hover, definition, completion, inlay hints, semantic tokens — comes from the language server.
+VS Code already owns the two halves that are not the server's job: its built-in `cpp` extension contributes the
+`cuda-cpp` language and its grammar, so this extension contributes neither — it *claims* those documents and answers
+everything else from the server.
 
-The one thing left to configure is the **toolkit**, which is where `dim3`, `threadIdx` and `float4` come from: they are
-*declarations in nvcc's headers*, not keywords, so nothing can resolve or colour them until those headers are on the
-include path. A project states that in its own `.cppls.toml`:
+What is left to configure is the **toolkit**, which is where `dim3`, `threadIdx` and `float4` come from: they are
+*declarations in nvcc's headers*, not keywords, so nothing can resolve them until those headers are on the include
+path.
 
 ```toml
-# .cppls.toml, in the workspace root
 [compile.cuda]
-enable = true                                       # read this project as CUDA even without an nvcc in the database
+enable = true                               # read this project as CUDA even without an nvcc in the database
 toolkit = "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.4"
-host_compiler = "cl"                                # the host dialect: cl (MSVC), or g++/clang++ (GNU)
+host_compiler = "cl"                        # the host dialect: cl (MSVC), or g++/clang++ (GNU)
+include = ["3rd/cutlass/include"]           # extra include directories, relative to the root
+args = ["-arch=sm_80"]                      # appended to whichever flags won
 ```
 
-A project whose build has a compile database with `nvcc` commands needs none of this — the toolchain says it, and
-`enable` exists for the machine where no database is available. `__CUDA_ARCH__` is deliberately not a setting: it is
-defined only in the device compilation pass, so defining it for a whole file would send host code down a branch a
-real compiler never takes.
+A project whose build has a compile database with `nvcc` commands needs none of this — the toolchain says it.
+`__CUDA_ARCH__` is deliberately *not* a setting: it is defined only in the device compilation pass, so defining it for
+a whole file would send host code down a branch a real compiler never takes.
 
-### Living next to the Microsoft C/C++ extension
-
-`ms-vscode.cpptools` also answers for C/C++ documents, and on a `.cu` file both servers would try. If you want this
-server to be the only one answering for CUDA, turn that extension's IntelliSense off (its syntax colouring can stay):
+`ms-vscode.cpptools` answers for C/C++ documents too, and on a `.cu` file both servers would try. To keep this one as
+the only answer for CUDA, turn that extension's IntelliSense off (its syntax colouring can stay):
 
 ```jsonc
 // settings.json
 "C_Cpp.intelliSenseEngine": "disabled"
 ```
-## How the server is reached
-
-The extension supports two transports and picks between them at connect time, so
-you can keep the extension host running while you restart the server by hand.
-
-| Mode | When it is used | How it talks |
-| --- | --- | --- |
-| **bundled** | Default, and always when `CPPLS_DEV` is not set | Spawns `server/cpp_ls` (`.exe` on Windows) and speaks LSP over **stdio** |
-| **tcp (development)** | `CPPLS_DEV` is set **and** something is listening on port 5009 | Connects to `127.0.0.1:5009` over **TCP** |
-
-The choice is made by `cppls.server.launchMode`:
-
-* `auto` (default) — use TCP while `CPPLS_DEV` is set and the port answers;
-  otherwise spawn a local server. A forgotten `CPPLS_DEV` therefore never breaks
-  a normal editing session: the client logs a warning and falls back to stdio.
-* `tcp` — always use TCP. Use this when you want a hard failure instead of a
-  silent fallback.
-* `bundled` — always spawn the executable, even with `CPPLS_DEV` set.
-
-```text
-CPPLS_DEV=1  ─┬─►  probe 127.0.0.1:5009 ──► open ──► connect over TCP
-              └─►  no listener ─────────► spawn server/cpp_ls over stdio
-
-CPPLS_DEV unset ────────────────────────► spawn server/cpp_ls over stdio
-```
-
-## Environment variables
-
-| Variable | Meaning |
-| --- | --- |
-| `CPPLS_DEV` | Any value except `0`, `false`, `off`, `no` enables development (TCP) mode. |
-| `CPPLS_DEV_PORT` | Overrides the development TCP port (default `5009`). |
-| `CPPLS_SERVER_PATH` | Absolute or extension relative path to the server executable. |
-
-`CPPLS_DEV` is read from the environment of the **extension host**, which is the
-process VS Code was started from — not from a shell inside the integrated
-terminal.
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| `cppls: Restart Language Server` | Stops and starts the client. Use it after restarting your development server. |
+| `cppls: Restart Language Server` | Stops and starts the client. |
 | `cppls: Stop Language Server` | Stops the client without restarting it. |
-| `cppls: Show Server Info` | Shows the active transport, the executable or endpoint, and every path that was searched. |
+| `cppls: Show Server Info` | The active transport, the executable or endpoint, and every path that was searched. |
 | `cppls: Show Logs` | Opens the `cppls` output channel. |
-| `cppls: Check Development Server Port` | Probes the configured TCP port and reports whether a server answers. |
+| `cppls: Check Development Server Port` | Probes the development TCP port and reports whether a server answers. |
 
-The status bar shows the active mode: `$(radio-tower) cppls :5009` for TCP,
-`$(server-process) cppls` for a spawned server.
-
-## Settings
-
-| Setting | Default | Description |
-| --- | --- | --- |
-| `cppls.server.path` | `""` | Path to the `cpp_ls` executable. Relative paths resolve against the extension root. |
-| `cppls.server.launchMode` | `auto` | `auto`, `tcp` or `bundled`. |
-| `cppls.server.port` | `5009` | Development TCP port. |
-| `cppls.server.connectTimeout` | `5000` | Milliseconds to wait for the TCP port before falling back. |
-| `cppls.server.args` | `[]` | Extra arguments for the spawned server. |
-| `cppls.trace.server` | `off` | `off`, `messages` or `verbose`; protocol dumps go to the `cppls (LSP trace)` channel. |
-| `cppls.revealOutputChannelOnActivate` | `false` | Reveal the `cppls` channel when the server starts. |
-
-## Getting started
-
-**Requirement:** VS Code **1.138.0 or newer** (`engines.vscode` is `^1.138.0`,
-matching the newest published `@types/vscode`). The extension is developed and
-verified against VS Code 1.139.x stable.
-
-### Install the packaged extension
-
-```bash
-npm install
-npm run vsix           # type check + esbuild bundle + vsce package → cppls.vsix
-code --install-extension cppls.vsix --force
-```
-
-Then reload the window (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> →
-*Developer: Reload Window*) and open a `.cpp` file.
-
-To install into a **remote, container or sandbox** window, the VSIX has to be
-installed *there* — in the remote window use *Extensions: Install from VSIX…*,
-or run `code --install-extension cppls.vsix --force` on the remote host. A
-desktop extension does not load in a browser-only VS Code (vscode.dev), because
-it needs a Node.js host to spawn the server process.
-
-### Run from source while developing
-
-```bash
-npm run compile        # tsc → out/ (also used by the tests)
-npm run package        # type check + esbuild → dist/extension.js (what VS Code loads)
-```
-
-Open the folder in VS Code and press <kbd>F5</kbd> (*Run Extension*) to launch an
-extension host with the extension loaded.
-
-Without a `server/cpp_ls` binary the extension still activates and its commands
-work; the status bar shows `$(circle-slash) cppls` and the log explains exactly
-which paths were searched.
-
-### Developing the C++ server over TCP
-
-Because the server is built and started outside this repository, TCP mode is the
-comfortable way to work on it:
-
-```bash
-# 1. start your server on the port the extension expects (5009 by default)
-./server/cpp_ls -c tcp --port 5009
-
-# 2. start VS Code with CPPLS_DEV set, so the client prefers TCP
-```
-
-```powershell
-$env:CPPLS_DEV = '1'; code .          # Windows PowerShell
-```
-
-```bash
-CPPLS_DEV=1 code .                    # macOS / Linux
-```
-
-Or launch *Run Extension (TCP dev server)* from `.vscode/launch.json`, which sets
-`CPPLS_DEV=1` for you. Restart the server as often as you like and run
-`cppls: Restart Language Server` to reconnect — no window reload needed.
-
-> The server's own `--port` default is 5007; the extension's default is 5009.
-> Pass `--port 5009`, or set `cppls.server.port` / `CPPLS_DEV_PORT` to match.
->
-> Today `cpp_ls -c tcp` serves a single client and exits when it disconnects, so
-> you have to start it again after the client reconnects.
-
-## Checking a server build
-
-```bash
-npm run verify:server    # drives server/cpp_ls over stdio and TCP, reports what works
-```
-
-It prints the advertised capabilities and `serverInfo`, checks that diagnostics
-reach the client, and confirms `shutdown`/`exit` end the session cleanly. Exit
-code `2` means no binary is present.
-
-## Tests
-
-```bash
-npm run test:unit   # pure logic: config, settings, server lookup, TCP probe, plan rendering
-npm test            # extension host tests: activation, commands, and a real TCP handshake
-npm run lint
-```
-
-The extension host tests do not depend on your server: they start a miniature
-LSP peer on a spare port to prove the client completes a handshake and exchanges
-requests. Use `npm run verify:server` to test the server itself.
-
-## Project layout
-
-```text
-src/
-  extension.ts     activation, commands, status bar
-  client.ts        LanguageClient wiring; chooses TCP or a spawned process
-  settings.ts      reads the cppls.* settings (needs the vscode API)
-  config.ts        env vars and port logic (no vscode import, unit tested)
-  connection.ts    TCP connect/probe helpers (no vscode import, unit tested)
-  serverPath.ts    locates server/cpp_ls (no vscode import, unit tested)
-  plan.ts          the "how will we connect" decision, rendered for humans
-  test/            extension host tests
-server/
-  cpp_ls[.exe]     the C++ language server binary
-  README.md        the server side of the contract
-scripts/
-  verify-server.mjs  drives the binary and reports contract violations
-test/
-  unit/            node:test unit tests
-  fixtures/        C++ files used by the contract checker
-```
+The status bar shows the active mode and is clickable — it opens `cppls: Show Server Info`.
 
 ## Troubleshooting
 
-* **Nothing happens at all** — the extension activates on C/C++ documents only.
-  Open a `.cpp` or `.h` file, then check the status bar (right hand side) for
-  `cppls`. If it is missing, run `cppls: Show Logs`; if that command does not
-  exist either, the extension is not installed in this window — start it with
-  <kbd>F5</kbd> (Extension Development Host) or install the VSIX.
-* **"Unable to locate the cppls language server"** — put the binary at
-  `server/cpp_ls` (`server/cpp_ls.exe` on Windows) or set `cppls.server.path`.
-  `cppls: Show Server Info` lists every path that was searched.
-* **The client keeps spawning a process although `CPPLS_DEV` is set** — nothing
-  was listening on the port within `cppls.server.connectTimeout`. Run
-  `cppls: Check Development Server Port`; the log states the reason. Remember
-  that the port must match what you passed to `-c tcp --port`.
-* **The development server disconnects and does not come back** — while
-  `CPPLS_DEV` is set the client deliberately does not respawn anything. Start the
-  server again and run `cppls: Restart Language Server`.
-* **The log says `client Other`** — the server did not recognise the client. It
-  reads `initialize.clientInfo`; the extension sends
-  `{"name": "vscode-cppls"}` and the VS Code language client identifies itself as
-  `Visual Studio Code`.
+**Nothing happens.** The extension only activates for C/C++/CUDA documents. If the status bar is absent, open a
+`.cpp` or `.cu` file, or run any `cppls:` command.
+
+**The server does not start.** `cppls: Show Server Info` names the executable it tried and every path it searched;
+`cppls: Show Logs` has the server's own log, including why it exited. Where the bundled binary cannot run (another
+platform, a locked-down volume), point `cppls.server.path` at a build of `cpp_ls`.
+
+**Indexing takes a long time.** It is bounded by `[index].max_files` and shaped by `[workspace].exclude`; a build tree
+that is not excluded is the usual cause. The index is cached in `[index].cache_dir` and reused on the next start.
+
+**`#include <vector>` is red, or a name from the standard library is unknown.** The compiler could not be asked, so
+the server has no system include paths. Set `[compile].compiler`, or provide a `compile_commands.json`.
+
+**A file with errors has no diagnostics.** A diagnostic about a name is only reported once the file's includes have
+been read; until then the honest answer is silence. The status bar shows whether the index is still filling.
+
+**CUDA syntax is not understood.** Either the toolchain is not `nvcc` and `[compile.cuda].enable` is not set, or the
+project has not been given a toolkit — see [CUDA](#cuda).
+
+## Development
+
+The server's sources and its build instructions are in `server/README.md`.
+
+```text
+npm run check-types    # tsc --noEmit
+npm run lint           # eslint
+npm run test:unit      # node --test, against the compiled output
+npm test               # extension host tests (VS Code needs a display; CI uses xvfb)
+npm run bundle         # esbuild → dist/extension.js
+npm run vsix           # package cppls.vsix (install:local also installs it)
+npm run verify:server  # drive the server binary and check the LSP contract it must satisfy
+```
+
+**Transports.** By default the extension spawns the bundled `server/cpp_ls` and speaks LSP over stdio. For server
+development it can talk TCP instead: with `CPPLS_DEV` set and a server listening on `cppls.server.port` (5009), the
+client connects over TCP, so the extension host can stay running while the server is rebuilt and restarted. A
+forgotten `CPPLS_DEV` never breaks an editing session — the client logs it and falls back to stdio.
+`cppls.server.launchMode` forces one or the other (`auto` — the default, `tcp`, `bundled`).
+
+| Environment variable | Meaning |
+| --- | --- |
+| `CPPLS_DEV` | Any value except `0`, `false`, `off`, `no` enables development (TCP) mode. |
+| `CPPLS_DEV_PORT` | Overrides the development TCP port. |
+| `CPPLS_SERVER_PATH` | Absolute or extension-relative path to the server executable. |
+
+## License
+
+MIT — see [LICENSE](LICENSE).

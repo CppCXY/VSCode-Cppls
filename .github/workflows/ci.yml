@@ -37,6 +37,22 @@ jobs:
 
       - name: Bundle the extension
         run: npm run bundle
+      # **The contract between the two repositories.** `verify-server.mjs` drives the server binary the way the
+      # extension does: the handshake on both transports, the capability list, and a diagnostics report that is
+      # *pulled*. That last half is why this step exists — the server deleted `textDocument/publishDiagnostics`
+      # (`cpp_ls` commit `d5fd21e`) and this checker went on waiting for it, unnoticed because nothing ran it.
+      # The bundled binary is Windows-only, so the other runners skip: exit code 2 is "nothing to verify".
+      - name: Verify the server contract
+        shell: bash
+        run: |
+          set +e
+          npm run verify:server
+          status=$?
+          if [ $status -eq 2 ]; then
+            echo "no server binary for this platform — skipped"
+            exit 0
+          fi
+          exit $status
 
   integration:
     name: Extension host tests
