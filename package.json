@@ -76,32 +76,6 @@
     ],
     "languages": [
       {
-        "id": "cpp",
-        "aliases": [
-          "C++",
-          "cpp"
-        ],
-        "extensions": [
-          ".cpp",
-          ".cc",
-          ".cxx",
-          ".c++",
-          ".hpp",
-          ".hh",
-          ".hxx",
-          ".h++",
-          ".inl",
-          ".ipp",
-          ".tpp",
-          ".txx",
-          ".ixx",
-          ".cppm",
-          ".ccm",
-          ".cxxm"
-        ],
-        "configuration": "./language-configuration.json"
-      },
-      {
         "id": "c",
         "aliases": [
           "C",
@@ -109,9 +83,77 @@
         ],
         "extensions": [
           ".c",
-          ".h"
+          ".i"
         ],
         "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "cpp",
+        "aliases": [
+          "C++",
+          "Cpp",
+          "cpp"
+        ],
+        "extensions": [
+          ".cpp",
+          ".cppm",
+          ".cc",
+          ".ccm",
+          ".cxx",
+          ".cxxm",
+          ".c++",
+          ".c++m",
+          ".hpp",
+          ".hh",
+          ".hxx",
+          ".h++",
+          ".h",
+          ".ii",
+          ".ino",
+          ".inl",
+          ".ipp",
+          ".ixx",
+          ".mpp",
+          ".mxx",
+          ".tpp",
+          ".txx",
+          ".hpp.in",
+          ".h.in"
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "cuda-cpp",
+        "aliases": [
+          "CUDA C++"
+        ],
+        "extensions": [
+          ".cu",
+          ".cuh"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "c",
+        "scopeName": "source.c",
+        "path": "./syntaxes/c.tmLanguage.json"
+      },
+      {
+        "language": "cpp",
+        "scopeName": "source.cpp.embedded.macro",
+        "path": "./syntaxes/cpp.embedded.macro.tmLanguage.json"
+      },
+      {
+        "language": "cpp",
+        "scopeName": "source.cpp",
+        "path": "./syntaxes/cpp.tmLanguage.json"
+      },
+      {
+        "language": "cuda-cpp",
+        "scopeName": "source.cuda-cpp",
+        "path": "./syntaxes/cuda-cpp.tmLanguage.json"
       }
     ],
     "configuration": {
@@ -207,7 +249,9 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.61.1",
     "vscode-jsonrpc": "^9.0.3",
-    "vscode-languageclient": "^10.1.2"
+    "vscode-languageclient": "^10.1.2",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   },
   "overrides": {
     "diff": "^8.0.4",

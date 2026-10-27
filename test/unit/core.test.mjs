@@ -428,11 +428,21 @@ test('cuda documents are claimed by the id VS Code actually gives them', () => {
 	// only its own id was never attached to a `.cu` document, and the report was "most of the highlighting is missing":
 	// the keywords coloured by the built-in grammar, every name plain.
 	//
-	// The extension therefore contributes **no** CUDA language and **no** grammar of its own: both exist in VS Code,
-	// and a second one would be a second answer to "what colour is this file".
+	// The extension contributes no **new** language id: `cuda-cpp` is the id VS Code's built-in `cpp` extension
+	// already gives `.cu`/`.cuh`. It does contribute its own grammar for that id (a fork of the built-in one), because
+	// the baseline highlighting is owned here now.
 	const languages = contributes().languages.map((language) => language.id);
 	assert.ok(!languages.includes('cuda'), `no cuda language of our own: ${languages}`);
-	assert.ok(!contributes().grammars, 'and no grammar: the built-in `source.cuda-cpp` is the one a reader gets');
+
+	const grammars = contributes().grammars;
+	const scopes = grammars.map((grammar) => grammar.scopeName).sort();
+	assert.deepEqual(scopes, ['source.c', 'source.cpp', 'source.cpp.embedded.macro', 'source.cuda-cpp']);
+	for (const grammar of grammars) {
+		assert.ok(
+			fs.existsSync(path.join(EXTENSION_ROOT, grammar.path)),
+			`the grammar file for ${grammar.scopeName} exists: ${grammar.path}`,
+		);
+	}
 
 	const selector = settings.DOCUMENT_SELECTOR;
 	assert.ok(
@@ -447,6 +457,68 @@ test('cuda documents are claimed by the id VS Code actually gives them', () => {
 				`the selector claims ${scheme} ${language} documents: ${JSON.stringify(selector)}`,
 			);
 		}
+	}
+});
+
+// ---------------------------------------------------------------------------
+// language configuration
+// ---------------------------------------------------------------------------
+
+const LANGUAGE_CONFIG = JSON.parse(
+	fs.readFileSync(path.join(EXTENSION_ROOT, 'language-configuration.json'), 'utf8'),
+);
+
+test('the language configuration covers comments, brackets, folding and indentation', () => {
+	assert.equal(LANGUAGE_CONFIG.comments.lineComment, '//');
+	assert.deepEqual(LANGUAGE_CONFIG.comments.blockComment, ['/*', '*/']);
+	assert.ok(
+		LANGUAGE_CONFIG.autoClosingPairs.some((pair) => pair.open === '/**'),
+		'Doxygen blocks must auto-close',
+	);
+	assert.ok(LANGUAGE_CONFIG.colorizedBracketPairs.length >= 3);
+	assert.match(LANGUAGE_CONFIG.folding.markers.start, /pragma/);
+	assert.match(LANGUAGE_CONFIG.folding.markers.end, /endregion/);
+
+	const regexes = [
+		LANGUAGE_CONFIG.indentationRules.increaseIndentPattern,
+		LANGUAGE_CONFIG.indentationRules.decreaseIndentPattern,
+		LANGUAGE_CONFIG.wordPattern,
+		LANGUAGE_CONFIG.folding.markers.start,
+		LANGUAGE_CONFIG.folding.markers.end,
+		...LANGUAGE_CONFIG.onEnterRules.flatMap((rule) =>
+			[rule.beforeText, rule.afterText, rule.previousLineText].filter(Boolean),
+		),
+	];
+	for (const source of regexes) {
+		assert.doesNotThrow(() => new RegExp(source), `invalid regex: ${source}`);
+	}
+});
+
+test('the language configuration indents C and C++ constructs', () => {
+	const increase = new RegExp(LANGUAGE_CONFIG.indentationRules.increaseIndentPattern);
+	const decrease = new RegExp(LANGUAGE_CONFIG.indentationRules.decreaseIndentPattern);
+
+	assert.ok(increase.test('void f() {'));
+	assert.ok(increase.test('int x = f('));
+	assert.ok(increase.test('auto v = std::vector<int>{'));
+	assert.ok(decrease.test('}'));
+	assert.ok(decrease.test('  );'));
+	assert.ok(!decrease.test('int x;'));
+});
+
+test('headers belong to C++, not C', () => {
+	const languages = contributes().languages;
+	const c = languages.find((language) => language.id === 'c');
+	const cpp = languages.find((language) => language.id === 'cpp');
+	assert.ok(c && cpp);
+	assert.ok(!c.extensions.includes('.h'), 'the built-in cpp extension owns .h');
+	assert.ok(cpp.extensions.includes('.h'));
+	assert.deepEqual(
+		languages.map((language) => language.id).sort(),
+		['c', 'cpp', 'cuda-cpp'],
+	);
+	for (const language of languages) {
+		assert.equal(language.configuration, './language-configuration.json');
 	}
 });
 

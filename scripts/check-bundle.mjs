@@ -139,6 +139,11 @@ for (const language of manifest.contributes?.languages ?? []) {
 	}
 }
 
+for (const grammar of manifest.contributes?.grammars ?? []) {
+	const grammarPath = path.join(ROOT, grammar.path);
+	check(`grammar "${grammar.scopeName}" exists`, fs.existsSync(grammarPath), grammar.path);
+}
+
 // --- server binary ------------------------------------------------------------
 
 const serverNames = ['cpp_ls.exe', 'cpp_ls'];

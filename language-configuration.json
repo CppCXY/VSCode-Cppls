@@ -9,49 +9,62 @@
     ["(", ")"]
   ],
   "autoClosingPairs": [
-    { "open": "{", "close": "}" },
     { "open": "[", "close": "]" },
+    { "open": "{", "close": "}" },
     { "open": "(", "close": ")" },
     { "open": "'", "close": "'", "notIn": ["string", "comment"] },
     { "open": "\"", "close": "\"", "notIn": ["string", "comment"] },
-    { "open": "/*", "close": "*/", "notIn": ["string"] }
+    { "open": "/*", "close": "*/", "notIn": ["string"] },
+    { "open": "/**", "close": " */", "notIn": ["string"] }
   ],
   "surroundingPairs": [
     ["{", "}"],
     ["[", "]"],
     ["(", ")"],
-    ["'", "'"],
     ["\"", "\""],
+    ["'", "'"],
     ["<", ">"]
   ],
+  "wordPattern": "(-?\\d*\\.\\d\\w*)|([^\\`\\~\\!\\@\\#\\%\\^\\&\\*\\(\\)\\-\\=\\+\\[\\{\\]\\}\\\\\\|\\;\\:\\'\\\"\\,\\.\\<\\>\\/\\?\\s]+)",
   "indentationRules": {
-    "increaseIndentPattern": "^.*\\{[^}\"']*$",
-    "decreaseIndentPattern": "^\\s*[}\\)].*$"
+    "increaseIndentPattern": "^.*(\\{[^}]*|\\([^)]*|\\[[^\\]]*)$",
+    "decreaseIndentPattern": "^\\s*[}\\]\\)].*$"
   },
   "onEnterRules": [
     {
+      "previousLineText": "^\\s*(((else ?)?if|for|while)\\s*\\(.*\\)\\s*|else\\s*)$",
+      "beforeText": "^\\s+([^{i\\s]|i(?!f\\b))",
+      "action": { "indent": "outdent" }
+    },
+    {
+      "beforeText": "^\\s*//\\s*\\S|\\s//\\s+\\S",
+      "afterText": "^(?!\\s*$)",
+      "action": { "indent": "none", "appendText": "// " }
+    },
+    {
       "beforeText": "^\\s*/\\*\\*(?!/)(?:(?!\\*/).)*$",
       "afterText": "^\\s*\\*/$",
-      "action": {
-        "indent": "indentOutdent",
-        "appendText": " * "
-      }
+      "action": { "indent": "indentOutdent", "appendText": " * " }
     },
     {
       "beforeText": "^\\s*/\\*(?:(?!\\*/).)*$",
       "afterText": "^\\s*\\*/$",
-      "action": {
-        "indent": "none",
-        "appendText": " * "
-      }
+      "action": { "indent": "none", "appendText": " * " }
     },
     {
-      "beforeText": "^\\s*//",
-      "action": {
-        "indent": "none",
-        "appendText": "// "
-      }
+      "beforeText": "^\\s*#",
+      "action": { "indent": "none" }
     }
   ],
-  "wordPattern": "(-?\\d*\\.\\d\\w*)|([^`~!@#%^&*()\\-=\\+\\[{\\]}\\\\|;:'\",\\.<>/\\?\\s]+)"
+  "folding": {
+    "markers": {
+      "start": "^\\s*#\\s*(?:pragma\\s+region|region)\\b",
+      "end": "^\\s*#\\s*(?:pragma\\s+endregion|endregion)\\b"
+    }
+  },
+  "colorizedBracketPairs": [
+    ["{", "}"],
+    ["[", "]"],
+    ["(", ")"]
+  ]
 }

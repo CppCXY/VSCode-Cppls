@@ -132,9 +132,11 @@ locale = "zh-CN"
 that layer — the placement qualifiers (`__global__`, `__device__`, …) and the launch brackets of
 `kernel<<<grid, block>>>(args)` — only when the project says it is CUDA.
 
-VS Code already owns the two halves that are not the server's job: its built-in `cpp` extension contributes the
-`cuda-cpp` language and its grammar, so this extension contributes neither — it *claims* those documents and answers
-everything else from the server.
+VS Code owns the language ids and file associations (`c`, `cpp` and `cuda-cpp`); this extension owns the
+**baseline highlighting**: it ships its own TextMate grammars for the three ids, forked from VS Code's MIT-licensed
+grammars and patched here — the CUDA launch block of `kernel<<<grid, block>>>(args)` is scoped as such, C attributes
+and C23 `#embed`/`#elifdef` are recognised, and the C/C++ keyword layer is ours to tune. The client *claims* those
+documents and answers everything else from the server.
 
 What is left to configure is the **toolkit**, which is where `dim3`, `threadIdx` and `float4` come from: they are
 *declarations in nvcc's headers*, not keywords, so nothing can resolve them until those headers are on the include
@@ -201,7 +203,7 @@ The server's sources and its build instructions are in `server/README.md`.
 ```text
 npm run check-types    # tsc --noEmit
 npm run lint           # eslint
-npm run test:unit      # node --test, against the compiled output
+npm run test:unit      # node --test: compiled client, plus the TextMate grammars
 npm test               # extension host tests (VS Code needs a display; CI uses xvfb)
 npm run bundle         # esbuild → dist/extension.js
 npm run vsix           # package cppls.vsix (install:local also installs it)

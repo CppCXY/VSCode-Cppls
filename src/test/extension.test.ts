@@ -80,14 +80,44 @@ suite('cppls extension', () => {
 		assert.strictEqual(configuration.get('trace.server'), 'off');
 	});
 
-	test('claims C and C++ documents', async () => {
+	test('claims C, C++ and CUDA documents, with headers as C++', async () => {
 		const engine = vscode.extensions.getExtension(EXTENSION_ID);
-		const languages = engine?.packageJSON?.contributes?.languages ?? [];
-		const ids = languages.map((language: { id: string }) => language.id).sort();
-		assert.deepStrictEqual(ids, ['c', 'cpp']);
+		const languages: { id: string; extensions?: string[]; configuration?: string }[] =
+			engine?.packageJSON?.contributes?.languages ?? [];
+		const ids = languages.map((language) => language.id).sort();
+		assert.deepStrictEqual(ids, ['c', 'cpp', 'cuda-cpp']);
+
+		const c = languages.find((language) => language.id === 'c');
+		const cpp = languages.find((language) => language.id === 'cpp');
+		assert.ok(c && cpp);
+		assert.ok(!c.extensions?.includes('.h'), 'headers must not be claimed by C');
+		assert.ok(cpp.extensions?.includes('.h'), 'headers are C++');
+		for (const language of languages) {
+			assert.strictEqual(language.configuration, './language-configuration.json');
+		}
 	});
 
 	test('the dev server port check command runs without throwing', async () => {
 		await vscode.commands.executeCommand('cppls.checkDevServer');
+	});
+
+	test('uses our language configuration for block-comment continuation', async function () {
+		this.timeout(20000);
+
+		// VS Code's built-in configuration only continues `//` comments. Ours
+		// continues a block comment with ` * `, so this proves the contribution
+		// is the one the editor actually applied.
+		const document = await vscode.workspace.openTextDocument({ language: 'cpp', content: '/** */' });
+		const editor = await vscode.window.showTextDocument(document);
+		editor.selection = new vscode.Selection(0, 3, 0, 3);
+		await vscode.commands.executeCommand('type', { text: '\n' });
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		const lines = editor.document.getText().split(/\r?\n/);
+		assert.ok(
+			lines.some((line) => line.trimStart().startsWith('* ')),
+			`expected a continued block comment, got: ${JSON.stringify(lines)}`,
+		);
+		await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
 	});
 });

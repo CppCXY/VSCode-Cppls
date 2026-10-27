@@ -6,6 +6,22 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Language
+
+- The extension now ships its own TextMate grammars for `c`, `cpp` and
+  `cuda-cpp`: forks of VS Code's MIT-licensed grammars, patched here. The
+  patches cover CUDA `kernel<<<...>>>` launch blocks,
+  `__launch_bounds__`/`__grid_constant__`/`__cluster_dims__`, C
+  `__attribute__`/`__declspec`, and C23 `#embed`/`#elifdef`/`#elifndef`.
+- `language-configuration.json` is our own: `#pragma region` / `#region`
+  folding, Doxygen and block-comment continuation, preprocessor lines that do
+  not inherit indentation, and colorized bracket pairs.
+- Headers (`.h`) are C++ again: the extension no longer claims `.h` for C, and
+  the language contributions mirror VS Code's file associations.
+- `test:unit` tokenises the patched grammars with `vscode-textmate` and
+  `vscode-oniguruma` (the tokenizer VS Code itself uses), so a patch that does
+  not produce the expected scope fails the suite.
+
 ### Fixed
 
 - Opening a `.cu`/`.cuh` document activates the extension again. VS Code derives
