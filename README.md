@@ -11,18 +11,18 @@ Protocol (LSP). The server binary lives at `server/cpp_ls`
 
 ## CUDA
 
-`.cu` and `.cuh` documents are claimed by this extension and analysed as **CUDA**: a `.cu` file is C++ plus a
-layer of its own, and the server reads that layer — the placement qualifiers (`__global__`, `__device__`, …) and
-the launch brackets of `kernel<<<grid, block>>>(args)` — only when the project says it is CUDA.
+`.cu` and `.cuh` documents are analysed as **CUDA**: a `.cu` file is C++ plus a layer of its own, and the server reads
+that layer — the placement qualifiers (`__global__`, `__device__`, …) and the launch brackets of
+`kernel<<<grid, block>>>(args)` — only when the project says it is CUDA.
 
-Two things make the layer visible, and both are opt-in by nature:
+**VS Code already owns the two halves that are not the server's job.** Its built-in `cpp` extension contributes the
+`cuda-cpp` language for `.cu`/`.cuh` and the `source.cuda-cpp` grammar (which is the C++ grammar plus CUDA bits), so
+this extension contributes neither: it **claims** `cuda-cpp` in its document selector, and everything else — names,
+members, hover, definition, completion, inlay hints, semantic tokens — comes from the language server.
 
-1. **The grammar**, contributed as `source.cuda`: the CUDA keywords and the launch brackets are matched before the
-   built-in C++ grammar, so a `.cu` file is coloured instead of being plain text between the server's semantic
-   tokens. It needs no configuration.
-2. **The toolkit**, which is where `dim3`, `threadIdx` and `float4` come from — they are *declarations in nvcc's
-   headers*, not keywords, so nothing can colour or resolve them until those headers are on the include path. A
-   project states that in its own `.cppls.toml`:
+The one thing left to configure is the **toolkit**, which is where `dim3`, `threadIdx` and `float4` come from: they are
+*declarations in nvcc's headers*, not keywords, so nothing can resolve or colour them until those headers are on the
+include path. A project states that in its own `.cppls.toml`:
 
 ```toml
 # .cppls.toml, in the workspace root
@@ -39,23 +39,13 @@ real compiler never takes.
 
 ### Living next to the Microsoft C/C++ extension
 
-`.cu` files are claimed by **two** extensions on most machines: this one (`cuda`) and `ms-vscode.cpptools`
-(`cuda-cpp`). Whichever of the two wins the language assignment, this extension's client claims the document — the
-selector names both ids, because a client that named only `cuda` was never attached on a machine with the C/C++
-extension installed. The symptom was "most of the highlighting is missing": the keywords coloured by *their* grammar
-and every name plain, since no semantic token ever arrived.
-
-If you want this server to be the only one answering for CUDA, turn that extension's IntelliSense off (its syntax
-colouring can stay):
+`ms-vscode.cpptools` also answers for C/C++ documents, and on a `.cu` file both servers would try. If you want this
+server to be the only one answering for CUDA, turn that extension's IntelliSense off (its syntax colouring can stay):
 
 ```jsonc
 // settings.json
 "C_Cpp.intelliSenseEngine": "disabled"
 ```
-
-Nothing else is needed: the grammar this extension contributes colours `.cu`/`.cuh` on its own, and every other
-feature — hover, definition, references, completion, inlay hints, semantic tokens — comes from the language server.
-
 ## How the server is reached
 
 The extension supports two transports and picks between them at connect time, so

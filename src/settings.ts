@@ -49,18 +49,22 @@ export const DOCUMENT_SELECTOR: DocumentSelector = [
 	// those only when the project's toolchain is `nvcc` or `[compile.cuda]` says so, so claiming these documents costs a
 	// C++ project nothing.
 	//
-	// **Two language ids, and the second one is the reported bug.** `cuda` is ours (the language this extension
-	// contributes, with its own grammar and configuration). `cuda-cpp` is the id the **Microsoft C/C++ extension**
-	// contributes for the same `.cu` files, and it wins the assignment whenever that extension is installed — which it
-	// is on most machines that also have this one. A client that claimed only `cuda` was therefore never attached to
-	// the document: no semantic tokens, no hover, and a reader seeing "most of the highlighting is missing" — the
-	// keywords coloured by that extension's grammar, every name plain. clangd claims `cuda-cpp` for the same reason.
-	{ scheme: 'file', language: 'cuda' },
+	// **`cuda-cpp` is the id that matters, and it is not ours.** VS Code's *built-in* `cpp` extension contributes the
+	// `cuda-cpp` language for `.cu`/`.cuh` (`resources/app/extensions/cpp/package.json`, measured), and a built-in
+	// contribution wins the assignment over an extension of ours that claims the same files. So a client that claimed
+	// only an id of its own was never attached to a `.cu` document: no semantic tokens, no hover, and a reader seeing
+	// "most of the highlighting is missing" — the keywords coloured by the built-in `source.cuda-cpp` grammar, every
+	// name plain. clangd claims `cuda-cpp` for exactly this reason.
+	//
+	// `cuda` stays in the list because it costs nothing and it is what `files.associations` produces when a reader maps
+	// `*.cu` to a language of their own (`"*.cu": "cuda"`), and `cuda-cpp` is what the built-in extension produces.
+	// Both schemes: an untitled CUDA buffer is a scratchpad a reader pastes into.
 	{ scheme: 'file', language: 'cuda-cpp' },
+	{ scheme: 'file', language: 'cuda' },
 	{ scheme: 'untitled', language: 'c' },
 	{ scheme: 'untitled', language: 'cpp' },
-	{ scheme: 'untitled', language: 'cuda' },
 	{ scheme: 'untitled', language: 'cuda-cpp' },
+	{ scheme: 'untitled', language: 'cuda' },
 ];
 
 /** Reads the extension configuration, applying defaults and environment overrides. */

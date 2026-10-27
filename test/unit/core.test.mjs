@@ -455,65 +455,39 @@ test('every legend name the server can send is styled', () => {
 	}
 });
 
-test('the cuda language claims .cu and .cuh, and is styled by a grammar of its own', () => {
-	// **A `.cu` file has no language id without this entry**, and a document with no language id is one the client
-	// never claims: the server is never asked a single question about it. That was the report — the extension knew
-	// `cpp` and `c` only.
-	const cuda = contributes().languages.find((language) => language.id === 'cuda');
-	assert.ok(cuda, 'a `cuda` language is contributed');
-	assert.deepEqual(cuda.extensions, ['.cu', '.cuh']);
-	assert.equal(cuda.configuration, './language-configuration.json');
+test('cuda documents are claimed by the id VS Code actually gives them', () => {
+	// **`cuda-cpp`, not a language of our own.** VS Code's built-in `cpp` extension contributes the `cuda-cpp` language
+	// for `.cu`/`.cuh`, and a built-in contribution wins the assignment over one of ours — so a client that claimed
+	// only its own id was never attached to a `.cu` document, and the report was "most of the highlighting is missing":
+	// the keywords coloured by the built-in grammar, every name plain, because no semantic token ever arrived.
+	//
+	// The extension therefore contributes **no** CUDA language and **no** grammar of its own: both exist in VS Code,
+	// and a second one would be a second answer to "what colour is this file".
+	const languages = contributes().languages.map((language) => language.id);
+	assert.ok(!languages.includes('cuda'), `no cuda language of our own: ${languages}`);
+	assert.ok(!contributes().grammars, 'and no grammar: the built-in `source.cuda-cpp` is the one a reader gets');
 
-	// **The client claims those documents under both ids.** `cuda` is this extension's, and `cuda-cpp` is the id the
-	// Microsoft C/C++ extension contributes for the same `.cu` files — which it wins whenever it is installed. A
-	// selector that claimed only `cuda` was never attached to the document on such a machine, and the report was
-	// exactly that: the keywords coloured by that extension's grammar and every name plain, because no semantic token
-	// ever arrived. Both schemes too: an untitled CUDA buffer is a scratchpad a reader pastes into.
 	const selector = settings.DOCUMENT_SELECTOR;
+	assert.ok(
+		selector.some((entry) => entry.scheme === 'file' && entry.language === 'cuda-cpp'),
+		`the selector claims cuda-cpp documents: ${JSON.stringify(selector)}`,
+	);
+	// `cuda` stays for the reader who maps `*.cu` to a language of their own, and `untitled` for a pasted buffer.
 	for (const scheme of ['file', 'untitled']) {
-		for (const language of ['cuda', 'cuda-cpp']) {
+		for (const language of ['cuda-cpp', 'cuda']) {
 			assert.ok(
 				selector.some((entry) => entry.scheme === scheme && entry.language === language),
 				`the selector claims ${scheme} ${language} documents: ${JSON.stringify(selector)}`,
 			);
 		}
 	}
-
-	// **A grammar, because VS Code ships none for CUDA.** Without it the file is plain text between the semantic
-	// tokens the server sends: no keyword, string or comment colour at all.
-	const grammar = contributes().grammars.find((entry) => entry.language === 'cuda');
-	assert.ok(grammar, 'a grammar is contributed for `cuda`');
-	assert.equal(grammar.scopeName, 'source.cuda');
-	const path_ = path.join(EXTENSION_ROOT, grammar.path);
-	const loaded = JSON.parse(fs.readFileSync(path_, 'utf8'));
-	assert.equal(loaded.scopeName, 'source.cuda', 'and the file it names declares that scope');
-	const patterns = loaded.patterns.map((pattern) => pattern.include ?? pattern.match);
-	assert.ok(
-		patterns.includes('source.cpp'),
-		'the C++ grammar does the rest: ' + JSON.stringify(patterns),
-	);
-	// The CUDA layer is matched **before** the C++ grammar, or every qualifier would be an identifier.
-	const cpp = patterns.indexOf('source.cpp');
-	assert.ok(cpp > 0, 'the C++ grammar is the last pattern');
-	for (const pattern of loaded.patterns.slice(0, cpp)) {
-		assert.ok(!pattern.include, 'and the layer above it has no include of its own');
-	}
-	assert.ok(
-		loaded.patterns.slice(0, cpp).some((pattern) => pattern.match.includes('__global__')),
-		'the placement qualifiers are one of them',
-	);
-	assert.ok(
-		loaded.patterns.slice(0, cpp).some((pattern) => pattern.match.includes('<<<')),
-		'and the launch brackets are another',
-	);
 });
-
 test('every semantic token type the cuda entries style is one the server can send', () => {
 	// The legend test above covers `cpp`; a language whose scopes were copied needs the same promise, or the first
 	// token type someone adds is styled in C++ files and uncoloured in CUDA ones.
 	const cpp = contributes().semanticTokenScopes.find((entry) => entry.language === 'cpp');
 	assert.ok(cpp, 'the cpp entry exists');
-	for (const language of ['cuda', 'cuda-cpp']) {
+	for (const language of ['cuda-cpp']) {
 		const styled = contributes()
 			.semanticTokenScopes.filter((entry) => entry.language === language)
 			.flatMap((entry) => Object.keys(entry.scopes));

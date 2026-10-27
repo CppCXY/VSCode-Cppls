@@ -34,17 +34,6 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "grammars": [
-      {
-        "language": "cuda",
-        "scopeName": "source.cuda",
-        "path": "./syntaxes/cuda.tmLanguage.json",
-        "embeddedLanguages": {
-          "meta.preprocessor.cpp": "cpp",
-          "source.cpp": "cpp"
-        }
-      }
-    ],
     "semanticTokenScopes": [
       {
         "language": "cpp",
@@ -106,64 +95,6 @@
       },
       {
         "language": "cuda-cpp",
-        "scopes": {
-          "namespace": [
-            "entity.name.namespace.cpp"
-          ],
-          "type": [
-            "entity.name.type.cpp"
-          ],
-          "typeParameter": [
-            "entity.name.type.template.cpp"
-          ],
-          "enum": [
-            "entity.name.type.enum.cpp"
-          ],
-          "enumMember": [
-            "variable.other.enummember.cpp"
-          ],
-          "class": [
-            "entity.name.type.class.cpp"
-          ],
-          "function": [
-            "entity.name.function.cpp"
-          ],
-          "method": [
-            "entity.name.function.member.cpp"
-          ],
-          "property": [
-            "variable.other.property.cpp"
-          ],
-          "variable": [
-            "variable.other.readwrite.cpp",
-            "entity.name.variable.cpp"
-          ],
-          "parameter": [
-            "variable.parameter.cpp"
-          ],
-          "macro": [
-            "entity.name.function.preprocessor.cpp"
-          ],
-          "keyword": [
-            "keyword.control.cpp",
-            "keyword.cpp"
-          ],
-          "operator": [
-            "keyword.operator.cpp"
-          ],
-          "modifier": [
-            "storage.modifier.cpp",
-            "storage.type.cpp",
-            "keyword.other.cpp"
-          ],
-          "decorator": [
-            "keyword.other.documentation.cpp",
-            "comment.block.documentation.cpp"
-          ]
-        }
-      },
-      {
-        "language": "cuda",
         "scopes": {
           "namespace": [
             "entity.name.namespace.cpp"
@@ -331,18 +262,6 @@
         "extensions": [
           ".c",
           ".h"
-        ],
-        "configuration": "./language-configuration.json"
-      },
-      {
-        "id": "cuda",
-        "aliases": [
-          "CUDA",
-          "cuda"
-        ],
-        "extensions": [
-          ".cu",
-          ".cuh"
         ],
         "configuration": "./language-configuration.json"
       }
