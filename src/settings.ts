@@ -44,8 +44,14 @@ export interface ServerConfig {
 export const DOCUMENT_SELECTOR: DocumentSelector = [
 	{ scheme: 'file', language: 'c' },
 	{ scheme: 'file', language: 'cpp' },
+	// **CUDA**, which is C++ plus a layer of its own: `nvcc` compiles the host half with the platform's own compiler
+	// and adds the placement qualifiers (`__global__`) and the launch brackets (`k<<<g, b>>>(args)`). The server reads
+	// those only when the project's toolchain is `nvcc` or `[compile.cuda]` says so, so claiming these documents costs a
+	// C++ project nothing.
+	{ scheme: 'file', language: 'cuda' },
 	{ scheme: 'untitled', language: 'c' },
 	{ scheme: 'untitled', language: 'cpp' },
+	{ scheme: 'untitled', language: 'cuda' },
 ];
 
 /** Reads the extension configuration, applying defaults and environment overrides. */
