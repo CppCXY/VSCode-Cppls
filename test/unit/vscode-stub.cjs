@@ -7,19 +7,40 @@
 
 const state = {
 	values: {},
+	/** Values a `.vscode/settings.json` would contribute, i.e. the workspace scope. */
+	workspaceValues: {},
+	trusted: true,
 	lastSection: undefined,
 	lastScope: undefined,
 };
 
+function read(section, fallback) {
+	if (Object.hasOwn(state.workspaceValues, section) && state.workspaceValues[section] !== undefined) {
+		return state.workspaceValues[section];
+	}
+	const value = state.values[section];
+	return value === undefined ? fallback : value;
+}
+
 module.exports = {
 	workspace: {
+		get isTrusted() {
+			return state.trusted;
+		},
+
 		getConfiguration(section, scope) {
 			state.lastSection = section;
 			state.lastScope = scope ?? null;
 			return {
-				get(key, fallback) {
-					const value = state.values[key];
-					return value === undefined ? fallback : value;
+				get: read,
+				inspect(key) {
+					return {
+						key,
+						defaultValue: undefined,
+						globalValue: state.values[key],
+						workspaceValue: state.workspaceValues[key],
+						workspaceFolderValue: undefined,
+					};
 				},
 			};
 		},
@@ -28,6 +49,15 @@ module.exports = {
 	/** Test helpers (not part of the real VS Code API). */
 	__setValues(values) {
 		state.values = values;
+		state.workspaceValues = {};
+	},
+
+	__setWorkspaceValues(values) {
+		state.workspaceValues = values;
+	},
+
+	__setTrusted(trusted) {
+		state.trusted = trusted;
 	},
 
 	__getCalls() {

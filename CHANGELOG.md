@@ -6,6 +6,22 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Fixed
+
+- Opening a `.cu`/`.cuh` document activates the extension again. VS Code derives
+  `onLanguage:` events only from the languages an extension *contributes* (`c`,
+  `cpp` here); `cuda-cpp` is contributed by VS Code's built-in cpp extension, so
+  the client's document selector was never reached. `activationEvents` names both
+  CUDA ids explicitly now.
+- A `cppls.server.path` supplied by an untrusted workspace is ignored, which is
+  what the `untrustedWorkspaces` capability already promised: the bundled server
+  is used instead.
+- The extension-host suite looked the extension up as `cppls.cppls`; the real id
+  is `CppCXY.cppls`, so every assertion in it failed. The suite also covers CUDA
+  activation now, and fails when the activation event is removed again.
+- Deactivation waits for the language client to stop, so the server receives
+  `shutdown`/`exit` instead of being killed with the extension host.
+
 ### Packaging
 
 - `npm run vsix` builds the extension and produces `cppls.vsix`
@@ -21,6 +37,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   development tooling; the VSIX holds only the manifest, the bundle, the
   language configuration, the docs and `server/cpp_ls`.
 - MIT `LICENSE` added.
+- An extension icon (`icon.png`): a single vermilion `C` on near-black. The C is
+  the standard core C, C++ and CUDA share; no dialect mark and no `++` decoration.
+  Included in the VSIX.
 - `npm run verify:bundle` checks the packaged entry point exists, is CommonJS,
   requires `vscode` from the host and actually loads and exports `activate()`.
 
@@ -48,6 +67,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - `npm run verify:server` / `scripts/verify-server.mjs`: drives the real
   `server/cpp_ls` over stdio and TCP and reports contract violations, with exit
   code 2 when no binary is present so CI can skip.
+
+### Removed
+
+- The client-side semantic-token integration: the legend check
+  (`src/semanticLegend.ts`, `verifyServerLegend`) and the
+  `contributes.semanticTokenScopes` mappings. Semantic tokens are the server's
+  answer and the editor's styling; the client no longer inspects or overrides
+  them.
 
 ### Notes on the server contract
 

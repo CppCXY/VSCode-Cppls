@@ -46,6 +46,10 @@ check('manifest declares a publisher and name', Boolean(manifest.publisher && ma
 check('the extension has a version', Boolean(manifest.version), manifest.version);
 check('the main entry point exists', fs.existsSync(entry), entry);
 
+if (manifest.icon) {
+	check('the extension icon exists', fs.existsSync(path.join(ROOT, manifest.icon)), manifest.icon);
+}
+
 if (manifest.activationEvents?.length) {
 	check('activation events are declared', true, manifest.activationEvents.join(', '));
 } else {

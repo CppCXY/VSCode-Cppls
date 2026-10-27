@@ -163,6 +163,34 @@ test('readServerConfig falls back to safe values for nonsense settings', () => {
 	assert.equal(config.traceServer, 'off');
 });
 
+test('an untrusted workspace cannot point cppls.server.path at its own executable', () => {
+	// `cppls.server.path` is `machine-overridable`, so a workspace can set it. In an untrusted workspace that would let
+	// the workspace choose the executable the extension spawns, which is what the trust prompt exists to prevent; the
+	// `untrustedWorkspaces` capability promises the bundled server instead. A path the *user* configured stays theirs,
+	// because only the workspace/folder scope is suspect.
+	try {
+		vscodeStub.__setValues({});
+		vscodeStub.__setWorkspaceValues({ 'server.path': '/workspace/evil/cpp_ls' });
+		vscodeStub.__setTrusted(false);
+		assert.equal(
+			settings.readServerConfig().serverPath,
+			undefined,
+			'a workspace supplied executable must be ignored while the workspace is untrusted',
+		);
+
+		vscodeStub.__setWorkspaceValues({});
+		vscodeStub.__setValues({ 'server.path': '/home/me/bin/cpp_ls' });
+		assert.equal(
+			settings.readServerConfig().serverPath,
+			'/home/me/bin/cpp_ls',
+			'a user supplied executable is not a workspace setting',
+		);
+	} finally {
+		vscodeStub.__setTrusted(true);
+		vscodeStub.__setValues({});
+	}
+});
+
 test('describeServerConfig summarises the active mode', () => {
 	const config = {
 		launchMode: 'auto',
@@ -391,75 +419,14 @@ test('describePlanDetails reports the endpoint of a TCP connection', () => {
 });
 
 // ---------------------------------------------------------------------------
-// semantic tokens
+// language contributions
 // ---------------------------------------------------------------------------
-//
-// **There is no refinement to test, and that is the point.** This extension used
-// to intercept `provideDocumentSemanticTokens`, decode the server's whole token
-// stream, apply `VSCODE_REMAP` — which was empty — and encode it again. Every
-// keystroke paid for that to change nothing. Colour corrections now live in
-// `contributes.semanticTokenScopes`, which the editor applies while drawing the
-// token anyway and which costs this extension nothing.
-//
-// What is left to test is the one thing the extension still does at runtime: the
-// legend check, and the agreement between that legend and the scope names in
-// `package.json`.
-
-const semanticLegend = require('../../out/semanticLegend.js');
-
-test('the legend this extension assumes is the one the server advertises', () => {
-	// The list is written twice — here and in `builder.rs` (`TypeKind::ALL`) — so this states what a mismatch looks
-	// like. It is the same check the extension logs at start-up, once per connection.
-	assert.equal(semanticLegend.verifyLegend(semanticLegend.SERVER_LEGEND), undefined);
-
-	assert.match(semanticLegend.verifyLegend(['namespace', 'type']), /advertises 2 token type/);
-	assert.match(
-		semanticLegend.verifyLegend([...semanticLegend.SERVER_LEGEND.slice(0, -1), 'something-else']),
-		/calls it `decorator`/,
-	);
-});
-
-test('the types this extension styles are the types the server can send', () => {
-	// Every scope name in `package.json`'s `semanticTokenScopes` has to be a type the server can actually emit, or
-	// the entry styles a token that never arrives. `decorator` is the one this extension exists for.
-	const pkg = require('../../package.json');
-	const scoped = new Set();
-	for (const entry of pkg.contributes.semanticTokenScopes) {
-		for (const name of Object.keys(entry.scopes)) {
-			scoped.add(name);
-		}
-	}
-
-	for (const name of scoped) {
-		assert.ok(
-			semanticLegend.SERVER_LEGEND.includes(name),
-			`\`${name}\` is styled by package.json but the server never sends it`,
-		);
-	}
-	assert.ok(scoped.has('decorator'), 'the Doxygen scope mapping must be present');
-});
-
-test('every legend name the server can send is styled', () => {
-	// The other direction, which is the one the report was about: a type the server sends with no entry here is
-	// drawn by whatever TextMate guessed first, and a keyword that reads as a type — `bool` against `struct` — is
-	// exactly that shape of wrong. Every name the legend holds must appear in `semanticTokenScopes` for `cpp`.
-	const pkg = require('../../package.json');
-	const cpp = pkg.contributes.semanticTokenScopes.find((entry) => entry.language === 'cpp');
-	assert.ok(cpp, 'the cpp scope mapping must be present');
-
-	for (const name of semanticLegend.SERVER_LEGEND) {
-		assert.ok(
-			Object.hasOwn(cpp.scopes, name),
-			`the server can send \`${name}\` and package.json does not style it`,
-		);
-	}
-});
 
 test('cuda documents are claimed by the id VS Code actually gives them', () => {
 	// **`cuda-cpp`, not a language of our own.** VS Code's built-in `cpp` extension contributes the `cuda-cpp` language
 	// for `.cu`/`.cuh`, and a built-in contribution wins the assignment over one of ours — so a client that claimed
 	// only its own id was never attached to a `.cu` document, and the report was "most of the highlighting is missing":
-	// the keywords coloured by the built-in grammar, every name plain, because no semantic token ever arrived.
+	// the keywords coloured by the built-in grammar, every name plain.
 	//
 	// The extension therefore contributes **no** CUDA language and **no** grammar of its own: both exist in VS Code,
 	// and a second one would be a second answer to "what colour is this file".
@@ -482,19 +449,23 @@ test('cuda documents are claimed by the id VS Code actually gives them', () => {
 		}
 	}
 });
-test('every semantic token type the cuda entries style is one the server can send', () => {
-	// The legend test above covers `cpp`; a language whose scopes were copied needs the same promise, or the first
-	// token type someone adds is styled in C++ files and uncoloured in CUDA ones.
-	const cpp = contributes().semanticTokenScopes.find((entry) => entry.language === 'cpp');
-	assert.ok(cpp, 'the cpp entry exists');
-	for (const language of ['cuda-cpp']) {
-		const styled = contributes()
-			.semanticTokenScopes.filter((entry) => entry.language === language)
-			.flatMap((entry) => Object.keys(entry.scopes));
-		assert.deepEqual(
-			styled.sort(),
-			Object.keys(cpp.scopes).sort(),
-			`${language} styles the same set of token types as cpp`,
+
+test('every language the client claims can activate the extension', () => {
+	// **The other half of the CUDA report.** VS Code derives `onLanguage:` activation events from the languages an
+	// extension *contributes* — here `c` and `cpp`. `cuda-cpp` is contributed by VS Code's built-in `cpp` extension,
+	// and `cuda` only exists in a project that maps `*.cu` to it, so neither produces an event for this extension: with
+	// no explicit entry in `activationEvents`, opening a `.cu` file never activates the client, and nothing at all
+	// happens — no server, no status bar, no diagnostics.
+	const contributed = new Set(contributes().languages.map((language) => language.id));
+	const activated = new Set(
+		(MANIFEST.activationEvents ?? [])
+			.filter((event) => typeof event === 'string' && event.startsWith('onLanguage:'))
+			.map((event) => event.slice('onLanguage:'.length)),
+	);
+	for (const entry of settings.DOCUMENT_SELECTOR) {
+		assert.ok(
+			contributed.has(entry.language) || activated.has(entry.language),
+			`the client claims ${entry.language} documents but nothing activates the extension for them`,
 		);
 	}
 });

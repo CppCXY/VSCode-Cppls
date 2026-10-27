@@ -29,7 +29,6 @@ import { StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node';
 import { isDevModeEnabled } from './config';
 import { connectTcp, probeTcpPort } from './connection';
 import { LaunchPlan, SpawnPlan, TcpPlan, describePlan } from './plan';
-import { SERVER_LEGEND, verifyLegend } from './semanticLegend';
 import { ResolvedServer, resolveServer, serverSearchPaths } from './serverPath';
 import { ServerConfig, readServerConfig } from './settings';
 
@@ -278,24 +277,6 @@ export class CpplsLanguageClient implements vscode.Disposable {
 		};
 
 		return new LanguageClient('cppls', 'Cpp Language Server', serverOptions, clientOptions);
-	}
-
-	/**
-	 * Reports a legend mismatch **once per connection**, at start-up rather than on every answer.
-	 *
-	 * See `semanticLegend.ts` for what the legend is and why a stale copy matters. This is the only runtime cost
-	 * this extension pays for semantic tokens, and it is one comparison per connection.
-	 */
-	public verifyServerLegend(advertised: readonly string[]): void {
-		const problem = verifyLegend(advertised);
-		if (problem) {
-			this.channel.warn(
-				`Semantic token legend mismatch: ${problem}. Refinements that match a type by name will not apply; ` +
-					'see src/semanticTokens.ts (SERVER_LEGEND) and builder.rs (TypeKind::ALL).',
-			);
-		} else {
-			this.channel.debug(`Semantic token legend matches (${advertised.length} types).`);
-		}
 	}
 
 	/**

@@ -52,7 +52,7 @@ export const DOCUMENT_SELECTOR: DocumentSelector = [
 	// **`cuda-cpp` is the id that matters, and it is not ours.** VS Code's *built-in* `cpp` extension contributes the
 	// `cuda-cpp` language for `.cu`/`.cuh` (`resources/app/extensions/cpp/package.json`, measured), and a built-in
 	// contribution wins the assignment over an extension of ours that claims the same files. So a client that claimed
-	// only an id of its own was never attached to a `.cu` document: no semantic tokens, no hover, and a reader seeing
+	// only an id of its own was never attached to a `.cu` document: no hover, no completion, and a reader seeing
 	// "most of the highlighting is missing" — the keywords coloured by the built-in `source.cuda-cpp` grammar, every
 	// name plain. clangd claims `cuda-cpp` for exactly this reason.
 	//
@@ -67,15 +67,44 @@ export const DOCUMENT_SELECTOR: DocumentSelector = [
 	{ scheme: 'untitled', language: 'cuda' },
 ];
 
+/**
+ * Reads `cppls.server.path`, refusing the value a *workspace* sets while that
+ * workspace is untrusted.
+ *
+ * The setting is `machine-overridable`, so `.vscode/settings.json` can point it
+ * at any executable on the machine. Honouring that in an untrusted workspace
+ * would let the workspace run its own code, which is precisely what the trust
+ * prompt exists to prevent. `capabilities.untrustedWorkspaces` promises the
+ * bundled server for that case, so the promise is kept here rather than left in
+ * the description text.
+ *
+ * A path the user set for themselves (user settings) is still honoured: only the
+ * workspace and folder scopes are suspect in an untrusted workspace.
+ */
+function configuredServerPath(config: vscode.WorkspaceConfiguration): string | undefined {
+	const value = (config.get<string>('server.path', '') ?? '').trim();
+	if (value.length === 0) {
+		return undefined;
+	}
+	if (vscode.workspace.isTrusted !== false) {
+		return value;
+	}
+
+	const inspected = config.inspect<string>('server.path');
+	const fromWorkspace =
+		typeof inspected?.workspaceValue === 'string' || typeof inspected?.workspaceFolderValue === 'string';
+	return fromWorkspace ? undefined : value;
+}
+
 /** Reads the extension configuration, applying defaults and environment overrides. */
 export function readServerConfig(scope?: vscode.ConfigurationScope): ServerConfig {
 	const config = vscode.workspace.getConfiguration(CONFIG_SECTION, scope ?? null);
 
-	const serverPath = config.get<string>('server.path', '').trim();
+	const serverPath = configuredServerPath(config);
 
 	return {
 		launchMode: normalizeLaunchMode(config.get<string>('server.launchMode', 'auto')),
-		serverPath: serverPath.length > 0 ? serverPath : undefined,
+		serverPath,
 		serverArgs: config.get<string[]>('server.args', []),
 		devPort: resolveDevPort(config.get<number>('server.port')),
 		connectTimeoutMs: Math.max(200, config.get<number>('server.connectTimeout', 5000)),

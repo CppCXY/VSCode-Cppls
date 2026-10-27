@@ -8,7 +8,7 @@
  */
 
 import * as vscode from 'vscode';
-import { LanguageClient, State } from 'vscode-languageclient/node';
+import { State } from 'vscode-languageclient/node';
 
 import { CpplsLanguageClient } from './client';
 import {
@@ -74,34 +74,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			context.subscriptions.push(
 				languageClient.onDidChangeState(() => {
 					updateStatusBar();
-					reportSemanticTokenLegend(languageClient);
 				}),
 			);
-			reportSemanticTokenLegend(languageClient);
 		}
 		updateStatusBar();
 	});
 }
 
-/**
- * **Checks the one assumption the client's refinement makes**, once per connection.
- *
- * A semantic token's type is a number indexing the legend the server advertised in `initialize`, and the extension
- * holds a copy of that list by name so a refinement can say "this type" rather than "type 11". The two are written
- * in different repositories, so they can drift. A drift costs an *unrefined* colour and never a wrong one — see
- * `verifyLegend` — and this turns that silent cost into a line in the log.
- */
-function reportSemanticTokenLegend(languageClient: LanguageClient): void {
-	const legend = languageClient.initializeResult?.capabilities?.semanticTokensProvider?.legend;
-	if (!legend || !Array.isArray(legend.tokenTypes)) {
-		return;
-	}
-	client?.verifyServerLegend(legend.tokenTypes);
-}
-
 export function deactivate(): Thenable<void> | undefined {
-	// `context.subscriptions` disposes the client, which stops the server.
-	return undefined;
+	// `context.subscriptions` disposes the client, but `dispose()` is synchronous and `stop()` is not: awaiting it
+	// here lets VS Code deliver `shutdown`/`exit` before the host goes away, instead of leaving the server process
+	// to be killed with it.
+	return client?.stop();
 }
 
 function registerCommands(context: vscode.ExtensionContext): void {
@@ -203,5 +187,10 @@ function logEnvironmentSummary(context: vscode.ExtensionContext): void {
 	);
 	if (!config.serverPath && !process.env[ENV_SERVER_PATH]) {
 		outputChannel?.debug('No explicit server path configured; falling back to the search order above.');
+	}
+	if (!vscode.workspace.isTrusted) {
+		outputChannel?.warn(
+			'The workspace is not trusted: a `cppls.server.path` set by the workspace is ignored and the bundled server is used.',
+		);
 	}
 }
