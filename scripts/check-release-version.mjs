@@ -9,8 +9,8 @@
  *     node scripts/check-release-version.mjs             # tag from GITHUB_REF_NAME
  *     node scripts/check-release-version.mjs --tag v0.1.2
  *
- * A leading `v` is accepted on both sides: the repository tags releases `v0.1.2`
- * while `package.json` carries `0.1.2`.
+ * A leading `v` is tolerated on both sides, but the repository tags releases `0.1.2`
+ * — the version itself, with no prefix — and that is what the comparison expects.
  */
 
 import fs from 'node:fs';

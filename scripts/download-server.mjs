@@ -20,7 +20,7 @@
  *
  *     node scripts/download-server.mjs --target win32-x64
  *     node scripts/download-server.mjs --target linux-x64 --version 0.1.2
- *     node scripts/download-server.mjs --target darwin-arm64 --tag v0.1.2
+ *     node scripts/download-server.mjs --target darwin-arm64 --tag 0.1.2
  *     node scripts/download-server.mjs --target win32-x64 --from temp/cpp_ls-win32-x64.zip
  *
  * `--from` skips the download and takes an archive from disk, which is how the
@@ -113,10 +113,10 @@ function readConfig() {
 }
 
 /**
- * **The tag a server version names.** The server repository tags releases
- * `v<version>`; a caller that passes `--tag` takes responsibility for the whole
- * spelling, and `--version` is normalised here so both `0.1.2` and `v0.1.2`
- * work.
+ * **The tag a server version names.** The server repository tags releases with the version itself — `0.1.1`, not
+ * `v0.1.1` — because that is the name its `releases/download/<tag>/<asset>` URLs are built from. `--tag` is taken
+ * verbatim; a `v` passed to `--version` is not part of the version and is stripped, so `--version v0.1.1` still asks for
+ * the tag that exists.
  */
 function tagOf(options, config) {
 	if (options.tag) {
@@ -126,10 +126,10 @@ function tagOf(options, config) {
 	if (!version) {
 		fail('no server version: set `serverVersion` in scripts/config.json or pass --version');
 	}
-	if (!/^\d+\.\d+\.\d+/.test(version)) {
-		fail(`"${version}" is not a version (expected 0.1.2)`);
+	if (!/^v?\d+\.\d+\.\d+/.test(version)) {
+		fail(`"${version}" is not a version (expected 0.1.1)`);
 	}
-	return version.startsWith('v') ? version : `v${version}`;
+	return version.replace(/^v/, '');
 }
 
 async function download(url, destination) {

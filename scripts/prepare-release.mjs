@@ -92,7 +92,7 @@ Next:
 
   git add package.json scripts/config.json
   git commit -m "release: ${version}"
-  git tag v${version}
+  git tag ${version}
   git push origin main --tags
 
 The tag is what makes CI build the per-platform .vsix files and attach them to
