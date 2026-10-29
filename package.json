@@ -220,7 +220,59 @@
       }
     }
   },
-  "scripts": {
+  "semanticTokenScopes": [
+    {
+      "language": "c",
+      "scopes": {
+        "formatSpecifier": [
+          "constant.other"
+        ],
+        "formatArgument": [
+          "variable.parameter"
+        ],
+        "formatConversion": [
+          "keyword.other"
+        ],
+        "formatEscape": [
+          "constant.character.escape"
+        ]
+      }
+    },
+    {
+      "language": "cpp",
+      "scopes": {
+        "formatSpecifier": [
+          "constant.other"
+        ],
+        "formatArgument": [
+          "variable.parameter"
+        ],
+        "formatConversion": [
+          "keyword.other"
+        ],
+        "formatEscape": [
+          "constant.character.escape"
+        ]
+      }
+    },
+    {
+      "language": "cuda-cpp",
+      "scopes": {
+        "formatSpecifier": [
+          "constant.other"
+        ],
+        "formatArgument": [
+          "variable.parameter"
+        ],
+        "formatConversion": [
+          "keyword.other"
+        ],
+        "formatEscape": [
+          "constant.character.escape"
+        ]
+      }
+    }
+  ],  "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
