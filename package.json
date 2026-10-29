@@ -134,6 +134,53 @@
         "configuration": "./language-configuration.json"
       }
     ],
+    "semanticTokenTypes": [
+      {
+        "id": "formatSpecifier",
+        "description": "Style for the specification of a format field: `{:.3f}` in `std::format`, `%-8.2` in `printf`."
+      },
+      {
+        "id": "formatArgument",
+        "description": "Style for the argument a format field refers to: `{0}`, `{name}`, `%1$`, `*`."
+      },
+      {
+        "id": "formatConversion",
+        "description": "Style for the letter that decides how a value is written: `d`, `s`, `f`, `[a-z]`."
+      },
+      {
+        "id": "formatEscape",
+        "description": "Style for an escaped brace or percent: `{{`, `}}`, `%%`."
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "c",
+        "scopes": {
+          "formatSpecifier": [ "keyword.other" ],
+          "formatArgument": [ "variable.parameter" ],
+          "formatConversion": [ "constant.numeric" ],
+          "formatEscape": [ "constant.character.escape" ]
+        }
+      },
+      {
+        "language": "cpp",
+        "scopes": {
+          "formatSpecifier": [ "keyword.other" ],
+          "formatArgument": [ "variable.parameter" ],
+          "formatConversion": [ "constant.numeric" ],
+          "formatEscape": [ "constant.character.escape" ]
+        }
+      },
+      {
+        "language": "cuda-cpp",
+        "scopes": {
+          "formatSpecifier": [ "keyword.other" ],
+          "formatArgument": [ "variable.parameter" ],
+          "formatConversion": [ "constant.numeric" ],
+          "formatEscape": [ "constant.character.escape" ]
+        }
+      }
+    ],
     "grammars": [
       {
         "language": "c",
@@ -220,59 +267,7 @@
       }
     }
   },
-  "semanticTokenScopes": [
-    {
-      "language": "c",
-      "scopes": {
-        "formatSpecifier": [
-          "constant.other"
-        ],
-        "formatArgument": [
-          "variable.parameter"
-        ],
-        "formatConversion": [
-          "keyword.other"
-        ],
-        "formatEscape": [
-          "constant.character.escape"
-        ]
-      }
-    },
-    {
-      "language": "cpp",
-      "scopes": {
-        "formatSpecifier": [
-          "constant.other"
-        ],
-        "formatArgument": [
-          "variable.parameter"
-        ],
-        "formatConversion": [
-          "keyword.other"
-        ],
-        "formatEscape": [
-          "constant.character.escape"
-        ]
-      }
-    },
-    {
-      "language": "cuda-cpp",
-      "scopes": {
-        "formatSpecifier": [
-          "constant.other"
-        ],
-        "formatArgument": [
-          "variable.parameter"
-        ],
-        "formatConversion": [
-          "keyword.other"
-        ],
-        "formatEscape": [
-          "constant.character.escape"
-        ]
-      }
-    }
-  ],  "scripts": {
+  "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
@@ -281,11 +276,12 @@
     "bundle:watch": "npm run bundle -- --watch",
     "package": "npm run check-types && npm run bundle",
     "lint": "eslint src",
-    "pretest": "npm run compile && npm run package && npm run lint",
+    "pretest": "npm run compile && npm run package && npm run lint && npm run verify:manifest",
     "test": "vscode-test",
     "test:unit": "npm run compile && node --test \"test/unit/**/*.test.mjs\"",
     "verify:server": "node scripts/verify-server.mjs",
     "verify:bundle": "node scripts/check-bundle.mjs",
+    "verify:manifest": "node scripts/check-manifest.mjs",
     "vsix": "npm run package && vsce package --no-dependencies --out cppls.vsix",
     "install:local": "npm run vsix && code --install-extension cppls.vsix --force"
   },
