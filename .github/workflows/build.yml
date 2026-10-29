@@ -139,10 +139,10 @@ jobs:
       # adding the secret and re-running this job is all that is needed.
       - name: Check the Marketplace token
         env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          VSCE_PAT: ${{ secrets.VSCODE_RELEASE }}
         run: |
           if [ -z "$VSCE_PAT" ]; then
-            echo "::error title=VSCE_PAT is not set::Add the repository secret VSCE_PAT (Azure DevOps PAT with the Marketplace Manage scope), then re-run this job. The release already has every .vsix attached."
+            echo "::error title=VSCE_PAT is not set::Add the repository secret VSCODE_RELEASE (Azure DevOps PAT with the Marketplace Manage scope), then re-run this job. The release already has every .vsix attached."
             exit 1
           fi
 
@@ -150,7 +150,7 @@ jobs:
       # and `--skip-duplicate` makes a re-run after a partial failure safe.
       - name: Publish every platform
         env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          VSCE_PAT: ${{ secrets.VSCODE_RELEASE }}
         run: |
           for package in vsix/*.vsix; do
             echo "publishing $package"
