@@ -30,7 +30,7 @@ in the package.
 ```bash
 npm run server:download -- --target linux-x64            # the pinned server version
 npm run server:download -- --target win32-x64 --version 0.1.2
-npm run server:download -- --target darwin-arm64 --tag v0.1.2
+npm run server:download -- --target darwin-arm64 --tag 0.1.2
 npm run server:download -- --target win32-x64 --from /tmp/cpp_ls-win32-x64.zip
 ```
 
@@ -69,37 +69,45 @@ shipped 30 MB of archives from `temp/` until `.vscodeignore` excluded it.
 
    That writes the extension version into `package.json` and the server version into `scripts/config.json`, as text, so a
    one-line bump stays a one-line diff. It does not commit, tag or publish; the steps it prints are next.
-3. **Commit, tag, push.**
+3. **Commit, tag, push.** The tags have no `v` prefix — `0.1.2`, not `v0.1.2` — which is also the name the server's
+   release URLs use.
 
    ```bash
    git add package.json scripts/config.json
    git commit -m "release: 0.1.2"
-   git tag v0.1.2
+   git tag 0.1.2
    git push origin main --tags
    ```
 
    CI refuses a tag that disagrees with `package.json` (`scripts/check-release-version.mjs`), which is cheaper than
    finding out after seven packages exist.
-4. **Let CI build every platform.** [`.github/workflows/build.yml`](https://github.com/CppCXY/VSCode-Cppls/blob/main/.github/workflows/build.yml)
+4. **CI builds every platform and releases it.** [`.github/workflows/build.yml`](https://github.com/CppCXY/VSCode-Cppls/blob/main/.github/workflows/build.yml)
    runs one job per target (`win32-x64`, `win32-arm64`, `linux-x64`, `linux-arm64`, `alpine-x64`, `darwin-x64`,
-   `darwin-arm64`): it downloads that platform's server, packages the `.vsix`, checks it, and uploads it. A push to
-   `main` has already done this; only a tag also creates the GitHub release with every package attached — **as a draft**.
-5. **Publish the release**, then upload to the Marketplace if the release is meant to go there:
+   `darwin-arm64`): it downloads that platform's server, packages the `.vsix`, checks it, and uploads it. On a tag, two
+   more jobs run: **release** creates the GitHub release and attaches every `.vsix`, and **publish** uploads the same
+   files to the Marketplace — one per platform, which the `TargetPlatform` inside each `.vsix` makes possible. A push to
+   `main` has already built the packages; only a tag attaches and publishes them.
+5. **The Marketplace needs `VSCE_PAT`.** The publish job reads it from the repository secrets: an Azure DevOps personal
+   access token with the Marketplace's *Manage* scope, added under **Settings → Secrets and variables → Actions**.
+   Without it the job fails with a message saying exactly that — the release and its assets are already there, so add the
+   secret and re-run the job. Publishing a version that already exists is skipped (`--skip-duplicate`), so a re-run is
+   safe.
+
+   The same command by hand, if the job cannot run:
 
    ```bash
-   npx vsce publish --packagePath cppls-win32-x64.vsix cppls-linux-x64.vsix
+   npx vsce publish --packagePath cppls-win32-x64.vsix cppls-linux-x64.vsix --skip-duplicate
    ```
 
-   Each `.vsix` names its platform, so one invocation can publish several. This step is deliberately not in CI: it needs
-   a `VSCE_PAT` and a person.
+   Each `.vsix` names its platform, so one invocation publishes several.
 
 ## Exercising the pipeline without a tag
 
 **Every push to `main` or `master` builds the packages too** — all seven of them, exactly as a tag would — and keeps the
-`.vsix` files as workflow artifacts; the only step a push skips is creating the release. So packaging is checked on
-every change, before a tag exists, and a tag is only the moment the artifacts become a release. `workflow_dispatch` runs
-the same jobs against any branch, which is how a change to `download-server.mjs` or `check-vsix.mjs` is tried without
-committing it.
+`.vsix` files as workflow artifacts; the two steps a push skips are creating the release and publishing it. So packaging
+is checked on every change, before a tag exists, and a tag is only the moment the artifacts become a release and a
+Marketplace version. `workflow_dispatch` runs the same jobs against any branch, which is how a change to
+`download-server.mjs` or `check-vsix.mjs` is tried without committing it.
 
 ## Running a development server
 

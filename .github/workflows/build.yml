@@ -1,6 +1,6 @@
 name: Build VSIX
 
-# **Every push packages the extension; only a tag creates a release.**
+# **Every push packages the extension; a tag also releases and publishes it.**
 #
 # Each platform's package carries the language server built for *that* platform
 # — downloaded from the server repository's release whose version
@@ -8,11 +8,15 @@ name: Build VSIX
 # manifest, which is what makes VS Code install the right one.
 #
 # A push to `main` or `master`, a tag, or a manual dispatch builds all seven
-# packages and keeps them as workflow artifacts. The `release` job is the only
-# one that cares about the ref: it runs for a tag, and creates the release **as a
-# draft** with every `.vsix` attached, so publishing the release (and uploading
-# to the Marketplace) is the maintainer's click, not the workflow's. Flip `draft`
-# to `false` below to make it public automatically.
+# packages and keeps them as workflow artifacts. A tag goes further:
+#
+#   release   creates the GitHub release for the tag and attaches every `.vsix`;
+#   publish   uploads the same `.vsix` files to the Marketplace, one per platform.
+#
+# The Marketplace upload needs the repository secret `VSCE_PAT` (an Azure DevOps
+# personal access token with the Marketplace's *Manage* scope). Without it the
+# publish job fails with a message saying so — the release still exists, so the
+# packages can be published by hand afterwards.
 
 on:
   push:
@@ -83,9 +87,9 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: Attach the packages to the release
+    name: Create the GitHub release
     needs: package
-    # **The one thing a tag changes.** A branch build stops here, with the packages available as artifacts.
+    # **The first thing a tag changes.** A branch build stops after the packages, with them available as artifacts.
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
@@ -97,11 +101,58 @@ jobs:
           path: vsix
           merge-multiple: true
 
-      - name: Create the release
+      - name: Publish the release with every package
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
           files: vsix/*.vsix
           generate_release_notes: true
-          # The maintainer publishes it — see the note at the top of this file.
-          draft: true
+          # A release, not a draft: the tag is the decision to release. Set this to `true` to review the assets before
+          # they are visible, and publish it from the Releases page afterwards.
+          draft: false
+
+  publish:
+    name: Publish to the Marketplace
+    needs: package
+    # **The second thing a tag changes.** Same packages, uploaded once per platform; the `TargetPlatform` inside each
+    # `.vsix` is what the Marketplace uses to offer the right download.
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: vsix-*
+          path: vsix
+          merge-multiple: true
+
+      # **A missing token must say so**, not look like a publishing bug: the packages are already on the release, and
+      # adding the secret and re-running this job is all that is needed.
+      - name: Check the Marketplace token
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::error title=VSCE_PAT is not set::Add the repository secret VSCE_PAT (Azure DevOps PAT with the Marketplace Manage scope), then re-run this job. The release already has every .vsix attached."
+            exit 1
+          fi
+
+      # **One invocation per package**, so a failure names the platform it belongs to instead of a list of seven paths,
+      # and `--skip-duplicate` makes a re-run after a partial failure safe.
+      - name: Publish every platform
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          for package in vsix/*.vsix; do
+            echo "publishing $package"
+            npx vsce publish --packagePath "$package" --skip-duplicate
+          done
