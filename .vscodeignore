@@ -37,3 +37,8 @@ server/CMakeCache.txt
 .cppls/**
 **/.cppls/**
 *.log
+
+# Staging area of scripts/download-server.mjs (downloaded archives and
+# extractions). A release build leaves nothing here, but a local one does,
+# and 30 MB of binaries is not something an extension should ship twice.
+temp/**

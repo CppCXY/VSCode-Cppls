@@ -541,3 +541,25 @@ test('every language the client claims can activate the extension', () => {
 		);
 	}
 });
+
+test('a resolved server is made executable before it is spawned', () => {
+	const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cppls-exec-'));
+	try {
+		const command = path.join(directory, 'cpp_ls');
+		fs.writeFileSync(command, '');
+		if (process.platform !== 'win32') {
+			fs.chmodSync(command, 0o644);
+			assert.equal(serverPath.ensureExecutable({ command, source: 'bundled' }), true);
+			assert.notEqual(
+				fs.statSync(command).mode & 0o111,
+				0,
+				'a vsix is a zip and the installer may not keep the mode, so the spawn fixes it',
+			);
+		} else {
+			// Windows has no executable bit; the function is a no-op that still says "fine".
+			assert.equal(serverPath.ensureExecutable({ command, source: 'bundled' }), true);
+		}
+	} finally {
+		fs.rmSync(directory, { recursive: true, force: true });
+	}
+});

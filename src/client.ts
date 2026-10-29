@@ -29,7 +29,7 @@ import { StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node';
 import { isDevModeEnabled } from './config';
 import { connectTcp, probeTcpPort } from './connection';
 import { LaunchPlan, SpawnPlan, TcpPlan, describePlan } from './plan';
-import { ResolvedServer, resolveServer, serverSearchPaths } from './serverPath';
+import { ResolvedServer, ensureExecutable, resolveServer, serverSearchPaths } from './serverPath';
 import { ServerConfig, readServerConfig } from './settings';
 
 export { describePlan };
@@ -336,6 +336,13 @@ export class CpplsLanguageClient implements vscode.Disposable {
 	/** Spawns `server/cpp_ls` and adapts its stdio to the LSP message connection API. */
 	private createSpawnTransports(plan: SpawnPlan): MessageTransports {
 		const { server } = plan;
+		// **The bit the installer may not have kept.** See `ensureExecutable`: a vsix is a zip, and a Linux package whose
+		// server arrived without `+x` otherwise fails at `spawn` with `EACCES` — after every capability has been agreed.
+		if (!ensureExecutable(server)) {
+			this.channel.warn(
+				`Could not mark "${server.command}" executable; starting it may fail with a permission error.`,
+			);
+		}
 		const args = [...plan.args];
 		const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd();
 		this.channel.info(`Spawning "${server.command}" with args [${args.join(', ')}] (cwd: ${cwd})`);

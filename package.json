@@ -282,6 +282,10 @@
     "verify:server": "node scripts/verify-server.mjs",
     "verify:bundle": "node scripts/check-bundle.mjs",
     "verify:manifest": "node scripts/check-manifest.mjs",
+    "verify:vsix": "node scripts/check-vsix.mjs",
+    "server:download": "node scripts/download-server.mjs",
+    "release:prepare": "node scripts/prepare-release.mjs",
+    "release:check": "node scripts/check-release-version.mjs",
     "vsix": "npm run package && vsce package --no-dependencies --out cppls.vsix",
     "install:local": "npm run vsix && code --install-extension cppls.vsix --force"
   },

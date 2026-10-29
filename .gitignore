@@ -13,3 +13,6 @@ server/build/
 server/CMakeFiles/
 server/CMakeCache.txt
 .cppls
+
+# Staging area of scripts/download-server.mjs (downloaded archives and extractions).
+temp/

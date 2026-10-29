@@ -222,6 +222,60 @@ forgotten `CPPLS_DEV` never breaks an editing session — the client logs it and
 | `CPPLS_DEV_PORT` | Overrides the development TCP port. |
 | `CPPLS_SERVER_PATH` | Absolute or extension-relative path to the server executable. |
 
+## Packaging and releasing
+
+**A `.vsix` ships the language server for one platform.** The extension is a thin client, so each package carries a
+`cpp_ls` built for the platform it installs on, and VS Code picks the package by the `TargetPlatform` recorded in its
+`extension.vsixmanifest`:
+
+```text
+cppls-win32-x64.vsix     server/cpp_ls.exe   cpp_ls-win32-x64.zip
+cppls-linux-x64.vsix     server/cpp_ls       cpp_ls-linux-x64-glibc.2.17.tar.gz
+cppls-darwin-arm64.vsix  server/cpp_ls       cpp_ls-darwin-arm64.tar.gz
+```
+
+`scripts/download-server.mjs` fetches that asset from the server's GitHub release at the version `scripts/config.json`
+pins (`serverVersion`), extracts it into `server/`, and sets the executable bit — a checkout has no binary, and
+[`.gitignore`](.gitignore) keeps it that way:
+
+```bash
+npm run server:download -- --target linux-x64              # the pinned server version
+npm run server:download -- --target win32-x64 --version 0.1.2
+npm run server:download -- --target darwin-arm64 --from /tmp/cpp_ls-darwin-arm64.tar.gz
+```
+
+Package it and check what was packaged:
+
+```bash
+npx vsce package --no-dependencies --target win32-x64 --out cppls-win32-x64.vsix
+npm run verify:vsix -- cppls-win32-x64.vsix --target win32-x64
+```
+
+`npm run vsix` still builds a host-only package (`cppls.vsix`) for local use. It has no `TargetPlatform`, so it is for
+`--install-extension` on this machine, not for the Marketplace.
+
+### Release flow
+
+1. **Prepare the numbers.** `npm run release:prepare -- 0.1.2 0.1.0` writes the extension version into `package.json`
+   and the server version into `scripts/config.json`. The server release for that version must already exist — its
+   own tag builds the assets this downloads — and CI's 404 says which of the two is missing.
+2. **Commit and tag.** `git tag v0.1.2` — the tag is the trigger, and CI refuses one that disagrees with
+   `package.json` (`scripts/check-release-version.mjs`).
+3. **CI builds every platform** ([`.github/workflows/build.yml`](.github/workflows/build.yml)): one job per target
+   downloads that platform's server, packages the `.vsix`, and checks it with `scripts/check-vsix.mjs` — the
+   `TargetPlatform`, the binary for that platform, and nothing from `temp/`, `src/` or `node_modules/`.
+4. **The release is created as a draft** with every `.vsix` attached. Publishing it, and uploading to the
+   Marketplace, is left to the maintainer:
+
+   ```bash
+   npx vsce publish --packagePath cppls-win32-x64.vsix cppls-linux-x64.vsix
+   ```
+
+   Each `.vsix` already names its platform, so one invocation can publish several.
+
+`workflow_dispatch` runs the packaging jobs and keeps the packages as workflow artifacts without creating a release —
+the way to exercise the pipeline without tagging.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

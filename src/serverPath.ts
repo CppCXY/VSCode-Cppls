@@ -107,6 +107,33 @@ export function resolveServer(
 	return undefined;
 }
 
+/**
+ * Makes a resolved server executable.
+ *
+ * **A vsix is a zip, and whether the installer keeps the executable bit is not
+ * something an extension can assume.** Measured with this extension's own
+ * bundle: the Linux copy of `server/cpp_ls` arrived without `+x` and `spawn`
+ * failed with `EACCES`. `scripts/download-server.mjs` sets the mode on the file
+ * it puts into the package; this is the same fix for the copy that reaches a
+ * read-only extension directory, where whatever mode the installer wrote is all
+ * the file will ever have.
+ *
+ * Returns `false` when the mode could not be set — the caller says so and still
+ * attempts the spawn, because a filesystem that refuses `chmod` may already
+ * have the right mode.
+ */
+export function ensureExecutable(server: ResolvedServer): boolean {
+	if (process.platform === 'win32') {
+		return true;
+	}
+	try {
+		fs.chmodSync(server.command, 0o755);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 /** Every path that was considered, in the order they were tried. Used for diagnostics. */
 export function serverSearchPaths(
 	extensionPath: string,
