@@ -1,75 +1,79 @@
-# cppls — C/C++ language support for VS Code
+# Cpp Language Server
 
-A C and C++ language server for VS Code, written from scratch in Rust. No compiler daemon, no
-`compile_commands.json` required, no second syntax engine: one server that indexes the project, answers the
-questions an editor asks, and speaks the Language Server Protocol.
+**C and C++ language support for VS Code**, powered by [`cpp_ls`](https://github.com/CppCXY/cpp_ls) — a C/C++
+language server written from scratch in Rust. The server is bundled with the extension, so there is nothing else to
+install: no clangd, no compiler daemon, and no `compile_commands.json` required to be useful.
 
-```text
-completion · hover · signature help · go to definition · type definition · implementation · references
-document highlight · rename · call hierarchy · document symbols · workspace symbols · folding · selection range
-formatting (document and range) · inlay hints · semantic tokens · code actions · diagnostics · #include links
-```
+[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/CppCXY.cppls?label=marketplace&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=CppCXY.cppls)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/CppCXY.cppls)](https://marketplace.visualstudio.com/items?itemName=CppCXY.cppls)
+[![CI](https://github.com/CppCXY/VSCode-Cppls/actions/workflows/ci.yml/badge.svg)](https://github.com/CppCXY/VSCode-Cppls/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/CppCXY/VSCode-Cppls/blob/main/LICENSE)
 
-It analyses the text the editor has, not only what is saved — completion and hover work in a file that has never
-compiled, and a half-typed line does not stop the rest of the translation unit from resolving.
+## What it gives you
 
-## Features
-
-| Feature | What it gives you |
+| | |
 | --- | --- |
-| **Completion** | Members after `.`/`->`/`::`, names in scope, keywords, `#include` paths, macro names and their parameters |
-| **Hover** | The declaration and its type, a macro's body, an enumerator's value, the value of a constant |
-| **Signature help** | The parameter under the cursor is picked out of the list |
-| **Go to definition** | Through macros, aliases, `auto`, overloads, template instantiations and the standard library |
-| **Type definition / implementation** | The class behind a `unique_ptr`, the override behind a virtual call |
-| **References, rename** | Project-wide, including names reached only through an include |
-| **Call hierarchy** | Who calls this function, and what it calls |
-| **Semantic tokens** | Names are coloured by what they *are* — a type, a function, a member, a macro — not by how they look |
+| **Completion** | Members after `.`, `->` and `::`, names in scope, keywords, `#include` paths, macros and their parameters |
+| **Navigation** | Go to definition, type definition and implementation — through macros, aliases, `auto`, overloads and template instantiations |
+| **Hover** | The declaration and its type, a macro's replacement list, an enumerator's value, a constant's value |
+| **References and rename** | Project-wide, including names reached only through an `#include` |
+| **Diagnostics** | Parse errors and semantic checks, reported as you type — [26 rules](#diagnostics), each one switchable |
+| **Format strings** | `printf`, `std::format` and `scanf` strings are coloured, explained on hover, and completed — [see below](#format-strings) |
 | **Inlay hints** | Parameter names inside a call: `scale(count: 3, factor: 0.5)` |
-| **Formatting** | Whole document and selection, built on the same parser |
-| **Code actions** | `source.include`: add the header that declares the name under the cursor, when it does not resolve |
-| **Diagnostics** | Parse errors and semantic checks, pulled by the editor (`textDocument/diagnostic`) |
-| **Document links** | Every `#include` is a clickable link |
+| **Formatting** | Whole document and selection — built on the same parser, [not clang-format](#formatting) |
+| **Semantic tokens** | A name is coloured by what it *is* — type, function, member, macro — not by how it looks |
+| **Also** | Signature help, call hierarchy, document and workspace symbols, folding, selection range, document highlight, `#include` links, and a quick fix that adds the `#include` declaring an unresolved name |
 
-### Diagnostics
+The analysis follows the text the editor has, not only what has been saved: completion and hover work in a file that has
+never compiled, and a half-typed line does not stop the rest of the translation unit from resolving.
 
-Parse errors, plus checks a compiler would not tell you while you type:
+### Format strings
 
-```text
-argument-count  parameter-type  assign-type  undefined-field  return-type-mismatch  missing-return
-access-invisible  assignment-in-condition  include-not-found  macro-redefined  macro-parentheses
-unused  unnecessary-branch  simplify-boolean-expr  else-after-return  braces-around-statements
-c-style-cast  use-auto  use-nullptr  use-override  implicit-bool-conversion  concept-not-satisfied
-module-note
+A format string is where C++ code most often disagrees with itself, and the server parses it with the same parser it
+uses for everything else. Inside a literal, conversions are coloured as such, hovering one explains it, and typing
+offers the conversions the format function accepts:
+
+```cpp
+printf("%s: %d of %d\n", name, index, total);
+std::format("{} has {:.1f} MiB", file, size);
 ```
 
-Each rule has a stable kebab-case code and can be turned off individually — see [`[diagnostics]`](#cpplstoml). A file
-whose includes have not been read yet reports nothing rather than guessing: the diagnostic arrives when the index can
-justify it.
+`printf`, `std::format` and the `scanf` family are on by default; `[format.functions]` teaches it a project's own
+wrappers, including where their format string sits (`trace(level, fmt, …)`).
 
-## Supported files
+## Install
 
-```text
-C        .c  .h
-C++      .cc .cpp .cxx .c++ .hpp .hh .hxx .h++ .inl .ipp .tpp .txx .ixx .cppm .ccm .cxxm
-CUDA     .cu .cuh
+**Requires VS Code 1.138 or newer.**
+
+**From the Marketplace:** install **Cpp Language Server** (`CppCXY.cppls`), then open a folder containing C or C++
+sources. VS Code installs the package built for your platform automatically.
+
+**From a `.vsix`:** each package carries the server for exactly one platform, so pick the one you need:
+
+| Platform | Package |
+| --- | --- |
+| Windows x64 / arm64 | `cppls-win32-x64.vsix`, `cppls-win32-arm64.vsix` |
+| Linux x64 / arm64 (glibc) | `cppls-linux-x64.vsix`, `cppls-linux-arm64.vsix` |
+| Linux x64 (musl, e.g. Alpine) | `cppls-alpine-x64.vsix` |
+| macOS Intel / Apple silicon | `cppls-darwin-x64.vsix`, `cppls-darwin-arm64.vsix` |
+
+```bash
+code --install-extension cppls-linux-x64.vsix
 ```
 
-Any other file reached through a `#include` is analysed too, whatever it is called — that is how a compiler finds a
-header, so it is how the server finds one.
+In **Remote-SSH**, **WSL**, a **Dev Container** or **Codespaces**, the extension runs where the sources are: install the
+package for that machine, or let the Marketplace choose it.
 
 ## Getting started
 
-1. **Install the extension.** From the marketplace, or from a `.vsix`: `code --install-extension cppls.vsix`.
-2. **Open a folder.** The server starts with the first C/C++ file and indexes the workspace in the background. The
-   status bar shows how much is left, and goes away when the index can answer questions about every file.
-3. **Tell it how the project is built**, when it can be told. A `compile_commands.json` is read where CMake puts it
-   (`CMakeLists.txt` plus `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`), and a compiler on `PATH` is asked for its system
-   include paths and predefined macros. Without either the server still works: includes resolve relative to the file,
-   and — with `[compile].fuzzy_includes` on, which is the default when there is no database — a header nothing could
-   place is looked for inside the project.
-
-The server is a separate process, bundled with the extension, so nothing else has to be installed.
+1. **Open a folder** with C or C++ sources. The server starts with the first document and indexes the workspace in the
+   background; the status bar shows the active mode (click it for details).
+2. **Optionally, tell it how the project is built.** It reads a `compile_commands.json` from the project root or a build
+   directory (CMake: `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`), and asks a compiler on `PATH` for its system include paths
+   and predefined macros. Neither is required: with no database, includes resolve relative to the file and headers
+   nothing could place are looked for inside the project.
+3. **Point it at a compiler when discovery picks the wrong one** — `[compile].compiler` in `.cppls.toml`, or a
+   `compile_commands.json`, decides whose standard library and macros are read.
 
 ## Configuration
 
@@ -77,205 +81,177 @@ The server is a separate process, bundled with the extension, so nothing else ha
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `cppls.server.path` | `""` | Path to the `cpp_ls` executable. Empty uses the bundled one. |
-| `cppls.server.args` | `[]` | Extra arguments for the server process. |
-| `cppls.trace.server` | `off` | LSP traffic in the `cppls (LSP trace)` output channel. |
-| `cppls.revealOutputChannelOnActivate` | `false` | Show the `cppls` output channel as soon as the server starts. |
-| `cppls.server.launchMode` | `auto` | How the server is reached — see [Development](#development). |
+| `cppls.server.path` | `""` | Path to a `cpp_ls` executable. Empty uses the bundled one. |
+| `cppls.server.args` | `[]` | Extra command line arguments for the server process. |
+| `cppls.server.launchMode` | `"auto"` | `auto`, `tcp` (development server) or `bundled` (spawn over stdio). |
+| `cppls.server.port` | `5009` | Port of a development server in TCP mode. |
+| `cppls.server.connectTimeout` | `5000` | Milliseconds to wait for the TCP server before spawning one instead. |
+| `cppls.trace.server` | `"off"` | LSP traffic in the **cppls (LSP trace)** output channel: `off`, `messages` or `verbose`. |
+| `cppls.revealOutputChannelOnActivate` | `false` | Show the **cppls** output channel when the server starts. |
 
 ### `.cppls.toml`
 
-A project's own answers, in a file at the workspace root. Every section is optional; a key that is present wins over
-what discovery worked out, and unknown keys are reported rather than silently ignored.
+A project's own answers, in a file at the workspace root. Every key is optional, and an unknown one is reported instead
+of silently ignored. The full reference is in
+[`docs/configuration.md`](https://github.com/CppCXY/cpp_ls/blob/main/docs/configuration.md).
 
 ```toml
-# Which files are the project's.
+locale = "zh-CN"                             # messages in this project, over the editor's language
+
 [workspace]
-exclude = ["build/**", "3rd/**"]            # globs the analysis must not read
-source_extensions = ["cuh", "ipp"]          # added to the engine's own list
+exclude = ["build/**", "third_party/**"]     # globs the analysis must not read
+source_extensions = ["cuh", "ipp"]           # added to the files the engine already knows
 
-# How it is built, when discovery cannot work it out.
 [compile]
-database = "build/compile_commands.json"    # where the compile database is (relative or absolute)
-compiler = "clang++"                        # "auto" (or absent) leaves it to the discovery order
-standard = "c++20"                          # the project-wide -std=, inherited by every target
-args = ["-DFEATURE=1", "-Iinclude"]         # the project's own flags, *instead of* the compile database's
-extra_args = ["-Wall"]                      # appended to whatever won
-remove_args = ["-Werror"]                   # dropped from whichever set won, by whole spelling
-fuzzy_includes = true                       # look for unplaced headers inside the project (default: on without a database)
+database = "build/compile_commands.json"     # when discovery would not find it
+compiler = "clang++"                         # whose headers and macros are read
+standard = "c++20"                           # the project-wide -std=
+args = ["-DFEATURE=1", "-Iinclude"]          # the whole command line, *instead of* the database's
+extra_args = ["-Wall"]                       # appended to whichever set won
+remove_args = ["-Werror"]                    # dropped from whichever set won
 
-[[compile.target]]                          # a target that differs from the project
+[[compile.target]]                           # a target that differs from the project
 name = "embedded"
+sources = ["firmware/**"]
 standard = "c++17"
 args = ["-mcpu=cortex-m4"]
 
-# The index.
 [index]
-cache_dir = ".cppls"                        # where summaries are cached, relative to the root
-max_files = 10000                           # bound on the scan (this is the default)
+cache_dir = ".cppls"                         # where index summaries are cached, relative to the root
+max_files = 10000                            # bound on the project scan
 
-# What is reported, and when.
 [diagnostics]
-enable = []                                 # only these rule codes, if non-empty
-disable = ["unused"]                        # and never these
+enable = []                                  # only these rules, when non-empty
+disable = ["unused"]                         # and never these
 
 [hover]
-enable = true
+enable = true                                # false turns hover off
 
-# The language this project's messages are written in.
-locale = "zh-CN"
+[format]
+printf = true                                # the printf family, and fmt::printf
+std = true                                   # std::format / std::print / fmt::format
+scanf = true                                 # scanf and friends
 ```
 
 ### CUDA
 
-`.cu` and `.cuh` documents are analysed as **CUDA**: a `.cu` file is C++ plus a layer of its own, and the server reads
-that layer — the placement qualifiers (`__global__`, `__device__`, …) and the launch brackets of
-`kernel<<<grid, block>>>(args)` — only when the project says it is CUDA.
-
-VS Code owns the language ids and file associations (`c`, `cpp` and `cuda-cpp`); this extension owns the
-**baseline highlighting**: it ships its own TextMate grammars for the three ids, forked from VS Code's MIT-licensed
-grammars and patched here — the CUDA launch block of `kernel<<<grid, block>>>(args)` is scoped as such, C attributes
-and C23 `#embed`/`#elifdef` are recognised, and the C/C++ keyword layer is ours to tune. The client *claims* those
-documents and answers everything else from the server.
-
-What is left to configure is the **toolkit**, which is where `dim3`, `threadIdx` and `float4` come from: they are
-*declarations in nvcc's headers*, not keywords, so nothing can resolve them until those headers are on the include
-path.
+`.cu` and `.cuh` files are analysed as CUDA — the placement qualifiers, the launch brackets of
+`kernel<<<grid, block>>>(args)` — when the project says it is CUDA. What a project has to say is where the **toolkit**
+is; `dim3`, `threadIdx` and `float4` are declarations in nvcc's headers, so nothing can resolve them until those headers
+are on the include path:
 
 ```toml
 [compile.cuda]
-enable = true                               # read this project as CUDA even without an nvcc in the database
+enable = true
 toolkit = "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.4"
-host_compiler = "cl"                        # the host dialect: cl (MSVC), or g++/clang++ (GNU)
-include = ["3rd/cutlass/include"]           # extra include directories, relative to the root
-args = ["-arch=sm_80"]                      # appended to whichever flags won
+host_compiler = "cl"                         # the host dialect: cl (MSVC), or g++/clang++ (GNU)
+include = ["3rd/cutlass/include"]            # extra include directories, relative to the root
+args = ["-arch=sm_80"]                       # appended to whichever flags won
 ```
 
-A project whose build has a compile database with `nvcc` commands needs none of this — the toolchain says it.
-`__CUDA_ARCH__` is deliberately *not* a setting: it is defined only in the device compilation pass, so defining it for
-a whole file would send host code down a branch a real compiler never takes.
+A build whose `compile_commands.json` has `nvcc` commands needs none of this — the database says it. `__CUDA_ARCH__` is
+deliberately not a setting: it is defined only in the device compilation pass, and defining it for a whole file would
+send host code down a branch a real compiler never takes.
 
-`ms-vscode.cpptools` answers for C/C++ documents too, and on a `.cu` file both servers would try. To keep this one as
-the only answer for CUDA, turn that extension's IntelliSense off (its syntax colouring can stay):
+If `ms-vscode.cpptools` is also installed, it answers for C/C++ documents too and on a `.cu` file both servers compete.
+To keep this extension as the only answer, turn that one's IntelliSense off (its colouring can stay):
 
 ```jsonc
 // settings.json
 "C_Cpp.intelliSenseEngine": "disabled"
 ```
 
-## Commands
+### Commands
 
 | Command | What it does |
 | --- | --- |
 | `cppls: Restart Language Server` | Stops and starts the client. |
 | `cppls: Stop Language Server` | Stops the client without restarting it. |
 | `cppls: Show Server Info` | The active transport, the executable or endpoint, and every path that was searched. |
-| `cppls: Show Logs` | Opens the `cppls` output channel. |
+| `cppls: Show Logs` | Opens the **cppls** output channel. |
 | `cppls: Check Development Server Port` | Probes the development TCP port and reports whether a server answers. |
 
-The status bar shows the active mode and is clickable — it opens `cppls: Show Server Info`.
+## Languages and files
+
+```text
+C       .c .i
+C++     .cc .cpp .cxx .c++ .ccm .cppm .cxxm .c++m .h .hh .hpp .hxx .h++ .inl .ipp .tpp .txx .ixx .mpp .mxx .ino
+        .hpp.in .h.in .ii
+CUDA    .cu .cuh
+```
+
+Any other file reached through an `#include` is analysed too, whatever it is called: that is how a compiler finds a
+header, so it is how the server finds one. The extension ships its own TextMate grammars for the three language ids, so
+baseline colouring does not depend on another extension.
+
+## Diagnostics
+
+Parse errors, plus checks a compiler would not tell you while you type:
+
+```text
+syntax-error  param-type-check  assign-type-check  argument-count  return-type-mismatch  missing-return
+undefined-name  undefined-field  redefinition  unused  access-invisible  concept-not-satisfied
+include-not-found  macro-redefined  macro-parentheses  module-note  assignment-in-condition
+unnecessary-branch  simplify-boolean-expr  else-after-return  braces-around-statements  implicit-bool-conversion
+cstyle-cast  use-auto  use-nullptr  use-override
+```
+
+Every rule has a stable kebab-case code and is switched by name in `[diagnostics]` (`disable` wins over `enable`). A file
+whose includes have not been read yet reports nothing rather than guessing: the diagnostic arrives when the index can
+justify it.
+
+## Formatting
+
+Formatting is **not** clang-format. It is a formatter built on this project's own parser, and it aims at the common
+subset of the clang-format style so that the extension is useful out of the box — nothing more. **For production code,
+run clang-format** (or your project's formatter) and let this be the editor's fallback.
 
 ## Troubleshooting
 
-**Nothing happens.** The extension only activates for C/C++/CUDA documents. If the status bar is absent, open a
-`.cpp` or `.cu` file, or run any `cppls:` command.
+**Nothing happens.** The extension activates for C, C++ and CUDA documents only. Open a `.cpp` or `.cu` file, or run any
+`cppls:` command.
 
 **The server does not start.** `cppls: Show Server Info` names the executable it tried and every path it searched;
-`cppls: Show Logs` has the server's own log, including why it exited. Where the bundled binary cannot run (another
-platform, a locked-down volume), point `cppls.server.path` at a build of `cpp_ls`.
+`cppls: Show Logs` has the server's own log, including why it exited. Where the bundled binary cannot run, point
+`cppls.server.path` at a build of `cpp_ls`.
 
-**Indexing takes a long time.** It is bounded by `[index].max_files` and shaped by `[workspace].exclude`; a build tree
-that is not excluded is the usual cause. The index is cached in `[index].cache_dir` and reused on the next start.
+**`#include <vector>` is underlined, or a standard library name is unknown.** The compiler could not be asked, so the
+server has no system include paths: set `[compile].compiler`, or provide a `compile_commands.json`.
 
-**`#include <vector>` is red, or a name from the standard library is unknown.** The compiler could not be asked, so
-the server has no system include paths. Set `[compile].compiler`, or provide a `compile_commands.json`.
+**Indexing is slow.** It is bounded by `[index].max_files` and shaped by `[workspace].exclude`; a build tree that is not
+excluded is the usual cause. Summaries are cached in `[index].cache_dir` and reused on the next start.
 
-**A file with errors has no diagnostics.** A diagnostic about a name is only reported once the file's includes have
-been read; until then the honest answer is silence. The status bar shows whether the index is still filling.
-
-**CUDA syntax is not understood.** Either the toolchain is not `nvcc` and `[compile.cuda].enable` is not set, or the
-project has not been given a toolkit — see [CUDA](#cuda).
+**A file with errors has no diagnostics.** A diagnostic about a name is only reported once the file's includes have been
+read; until then the honest answer is silence.
 
 ## Development
 
-The server's sources and its build instructions are in `server/README.md`.
-
-```text
-npm run check-types    # tsc --noEmit
-npm run lint           # eslint
-npm run test:unit      # node --test: compiled client, plus the TextMate grammars
-npm test               # extension host tests (VS Code needs a display; CI uses xvfb)
-npm run bundle         # esbuild → dist/extension.js
-npm run vsix           # package cppls.vsix (install:local also installs it)
-npm run verify:server  # drive the server binary and check the LSP contract it must satisfy
-```
-
-**Transports.** By default the extension spawns the bundled `server/cpp_ls` and speaks LSP over stdio. For server
-development it can talk TCP instead: with `CPPLS_DEV` set and a server listening on `cppls.server.port` (5009), the
-client connects over TCP, so the extension host can stay running while the server is rebuilt and restarted. A
-forgotten `CPPLS_DEV` never breaks an editing session — the client logs it and falls back to stdio.
-`cppls.server.launchMode` forces one or the other (`auto` — the default, `tcp`, `bundled`).
-
-| Environment variable | Meaning |
-| --- | --- |
-| `CPPLS_DEV` | Any value except `0`, `false`, `off`, `no` enables development (TCP) mode. |
-| `CPPLS_DEV_PORT` | Overrides the development TCP port. |
-| `CPPLS_SERVER_PATH` | Absolute or extension-relative path to the server executable. |
-
-## Packaging and releasing
-
-**A `.vsix` ships the language server for one platform.** The extension is a thin client, so each package carries a
-`cpp_ls` built for the platform it installs on, and VS Code picks the package by the `TargetPlatform` recorded in its
-`extension.vsixmanifest`:
-
-```text
-cppls-win32-x64.vsix     server/cpp_ls.exe   cpp_ls-win32-x64.zip
-cppls-linux-x64.vsix     server/cpp_ls       cpp_ls-linux-x64-glibc.2.17.tar.gz
-cppls-darwin-arm64.vsix  server/cpp_ls       cpp_ls-darwin-arm64.tar.gz
-```
-
-`scripts/download-server.mjs` fetches that asset from the server's GitHub release at the version `scripts/config.json`
-pins (`serverVersion`), extracts it into `server/`, and sets the executable bit — a checkout has no binary, and
-[`.gitignore`](.gitignore) keeps it that way:
+The server's sources, its tests and its own documentation are in [`CppCXY/cpp_ls`](https://github.com/CppCXY/cpp_ls); the
+copy in `server/README.md` is the build instructions for the bundled binary.
 
 ```bash
-npm run server:download -- --target linux-x64              # the pinned server version
-npm run server:download -- --target win32-x64 --version 0.1.2
-npm run server:download -- --target darwin-arm64 --from /tmp/cpp_ls-darwin-arm64.tar.gz
+npm ci
+npm run check-types   # tsc --noEmit
+npm run lint          # eslint
+npm run test:unit     # node --test, over the compiled client and the grammars
+npm test              # extension host tests (needs a display; CI uses xvfb)
+npm run bundle        # esbuild → dist/extension.js
+npm run vsix          # a host-only cppls.vsix for local use (install:local also installs it)
+npm run verify:server # drive the server binary and check the LSP contract it must satisfy
 ```
 
-Package it and check what was packaged:
+`cppls.server.launchMode` and the `CPPLS_DEV` environment variable let the client talk to a server that is rebuilt
+underneath it (TCP instead of stdio); the mode is described in `cppls.server.launchMode` and in
+[`docs/releasing.md`](https://github.com/CppCXY/VSCode-Cppls/blob/main/docs/releasing.md).
 
-```bash
-npx vsce package --no-dependencies --target win32-x64 --out cppls-win32-x64.vsix
-npm run verify:vsix -- cppls-win32-x64.vsix --target win32-x64
-```
+Packaging one `.vsix` per platform, the release checklist and the CI pipeline are documented in
+[`docs/releasing.md`](https://github.com/CppCXY/VSCode-Cppls/blob/main/docs/releasing.md).
 
-`npm run vsix` still builds a host-only package (`cppls.vsix`) for local use. It has no `TargetPlatform`, so it is for
-`--install-extension` on this machine, not for the Marketplace.
+## Privacy
 
-### Release flow
-
-1. **Prepare the numbers.** `npm run release:prepare -- 0.1.2 0.1.0` writes the extension version into `package.json`
-   and the server version into `scripts/config.json`. The server release for that version must already exist — its
-   own tag builds the assets this downloads — and CI's 404 says which of the two is missing.
-2. **Commit and tag.** `git tag v0.1.2` — the tag is the trigger, and CI refuses one that disagrees with
-   `package.json` (`scripts/check-release-version.mjs`).
-3. **CI builds every platform** ([`.github/workflows/build.yml`](.github/workflows/build.yml)): one job per target
-   downloads that platform's server, packages the `.vsix`, and checks it with `scripts/check-vsix.mjs` — the
-   `TargetPlatform`, the binary for that platform, and nothing from `temp/`, `src/` or `node_modules/`.
-4. **The release is created as a draft** with every `.vsix` attached. Publishing it, and uploading to the
-   Marketplace, is left to the maintainer:
-
-   ```bash
-   npx vsce publish --packagePath cppls-win32-x64.vsix cppls-linux-x64.vsix
-   ```
-
-   Each `.vsix` already names its platform, so one invocation can publish several.
-
-`workflow_dispatch` runs the packaging jobs and keeps the packages as workflow artifacts without creating a release —
-the way to exercise the pipeline without tagging.
+The extension and the server run entirely on your machine: no telemetry, no accounts, and no code or project data sent
+anywhere. The server keeps its index cache in `.cppls/` at the workspace root — deleting that directory is always safe.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/CppCXY/VSCode-Cppls/blob/main/LICENSE).
