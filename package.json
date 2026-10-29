@@ -2,7 +2,7 @@
   "name": "cppls",
   "displayName": "Cpp Language Server",
   "description": "C/C++ language support powered by the cppls language server.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "CppCXY",
   "publisher": "CppCXY",
   "license": "MIT",
