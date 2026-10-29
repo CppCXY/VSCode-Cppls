@@ -82,8 +82,8 @@ shipped 30 MB of archives from `temp/` until `.vscodeignore` excluded it.
    finding out after seven packages exist.
 4. **Let CI build every platform.** [`.github/workflows/build.yml`](https://github.com/CppCXY/VSCode-Cppls/blob/main/.github/workflows/build.yml)
    runs one job per target (`win32-x64`, `win32-arm64`, `linux-x64`, `linux-arm64`, `alpine-x64`, `darwin-x64`,
-   `darwin-arm64`): it downloads that platform's server, packages the `.vsix`, checks it, and uploads it. A tag also
-   creates the GitHub release with every package attached — **as a draft**.
+   `darwin-arm64`): it downloads that platform's server, packages the `.vsix`, checks it, and uploads it. A push to
+   `main` has already done this; only a tag also creates the GitHub release with every package attached — **as a draft**.
 5. **Publish the release**, then upload to the Marketplace if the release is meant to go there:
 
    ```bash
@@ -95,8 +95,11 @@ shipped 30 MB of archives from `temp/` until `.vscodeignore` excluded it.
 
 ## Exercising the pipeline without a tag
 
-`workflow_dispatch` on **Build VSIX** runs the packaging jobs and keeps the `.vsix` files as workflow artifacts, with no
-release. That is also how a change to `download-server.mjs` or `check-vsix.mjs` is tested: dispatch against the branch.
+**Every push to `main` or `master` builds the packages too** — all seven of them, exactly as a tag would — and keeps the
+`.vsix` files as workflow artifacts; the only step a push skips is creating the release. So packaging is checked on
+every change, before a tag exists, and a tag is only the moment the artifacts become a release. `workflow_dispatch` runs
+the same jobs against any branch, which is how a change to `download-server.mjs` or `check-vsix.mjs` is tried without
+committing it.
 
 ## Running a development server
 

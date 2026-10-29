@@ -1,29 +1,31 @@
 name: Build VSIX
 
-# **A tag builds the extension, one package per platform.**
+# **Every push packages the extension; only a tag creates a release.**
 #
 # Each platform's package carries the language server built for *that* platform
 # — downloaded from the server repository's release whose version
 # `scripts/config.json` pins — and is marked with a `TargetPlatform` in its
 # manifest, which is what makes VS Code install the right one.
 #
-# The release is created **as a draft**: the tag opens it with every `.vsix`
-# attached, and publishing that release (and uploading to the Marketplace) is the
-# maintainer's click, not the workflow's. Flip `draft` to `false` below to make it
-# public automatically.
-#
-# `workflow_dispatch` builds the packages and keeps them as workflow artifacts,
-# with no release, so the pipeline can be exercised without tagging.
+# A push to `main` or `master`, a tag, or a manual dispatch builds all seven
+# packages and keeps them as workflow artifacts. The `release` job is the only
+# one that cares about the ref: it runs for a tag, and creates the release **as a
+# draft** with every `.vsix` attached, so publishing the release (and uploading
+# to the Marketplace) is the maintainer's click, not the workflow's. Flip `draft`
+# to `false` below to make it public automatically.
 
 on:
   push:
+    branches:
+      - main
+      - master
     tags:
       - "v[0-9]*"
       - "[0-9]*"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   package:
@@ -83,8 +85,11 @@ jobs:
   release:
     name: Attach the packages to the release
     needs: package
+    # **The one thing a tag changes.** A branch build stops here, with the packages available as artifacts.
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
