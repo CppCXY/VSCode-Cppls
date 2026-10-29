@@ -124,6 +124,9 @@ async function main() {
 	const expected = new Set(PACKAGED);
 	let missing = [...expected];
 	let answered = false;
+	// **What the gallery had for this version**, kept for the report: "nothing published" and "one platform short" are
+	// different mistakes, and the message has to say which one happened.
+	let present = [];
 
 	for (let attempt = 1; attempt <= options.attempts; attempt += 1) {
 		let records;
@@ -136,18 +139,25 @@ async function main() {
 		}
 
 		if (records) {
-			const published = new Set(
-				records.filter((record) => record.version === options.version).map((record) => record.target),
-			);
+			present = records.filter((record) => record.version === options.version).map((record) => record.target);
+			const published = new Set(present);
 			missing = [...expected].filter((target) => !published.has(target));
 			if (missing.length === 0) {
 				console.log(
 					`${manifest.publisher}.${manifest.name} ${options.version}: all ${expected.size} platform(s) are ` +
-						`published (${[...expected].join(', ')})`,
+						`published (${[...expected].join(", ")})`,
 				);
 				return;
 			}
-			console.log(`attempt ${attempt}/${options.attempts}: waiting for ${missing.join(', ')}`);
+			// **Say what was seen**, not only what is missing: the first failure of this check was a listing that had
+			// not appeared yet, and "waiting for …" alone made it look like the uploads had never run.
+			console.log(
+				present.length === 0
+					? `attempt ${attempt}/${options.attempts}: the gallery has no record of ${options.version} yet ` +
+						`(${records.length} version record(s) in total)`
+					: `attempt ${attempt}/${options.attempts}: ${present.length}/${expected.size} published ` +
+						`(${present.join(", ")}); waiting for ${missing.join(", ")}`
+			);
 		}
 
 		if (attempt < options.attempts) {
@@ -162,13 +172,22 @@ async function main() {
 		return;
 	}
 
+	if (present.length === 0) {
+		console.error(
+			`\nerror: the Marketplace has no record of ${manifest.publisher}.${manifest.name} ${options.version} after ` +
+				`${options.attempts} attempt(s). The uploads either did not run — see the "Publish every platform" step — or they were ` +
+				`rejected; a version that exists under another publisher name is a common cause.`
+		);
+		process.exit(1);
+	}
+
 	console.error(
 		`\nerror: ${manifest.publisher}.${manifest.name} ${options.version} is missing ${missing.length} platform(s) ` +
-			`on the Marketplace:\n  ${missing.join('\n  ')}`,
+			`on the Marketplace:\n  ${missing.join("\n  ")}`,
 	);
 	console.error(
-		'\nA platform-specific extension is published once per target. Publish the missing packages:\n  ' +
-			missing.map((target) => `npx vsce publish --packagePath cppls-${target}.vsix`).join('\n  '),
+		"\nA platform-specific extension is published once per target. Publish the missing packages:\n  " +
+			missing.map((target) => `npx vsce publish --packagePath cppls-${target}.vsix`).join("\n  "),
 	);
 	process.exit(1);
 }

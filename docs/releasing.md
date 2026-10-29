@@ -99,6 +99,11 @@ shipped 30 MB of archives from `temp/` until `.vscodeignore` excluded it.
    with `scripts/check-marketplace.mjs`, which asks the public gallery which targets this version has and fails,
    naming the missing ones, when it is fewer than `scripts/targets.mjs`'s `PACKAGED`.
 
+   **The listing is slow, so the wait is ten minutes.** Measured on `0.1.2`: the first target appeared 48 s after its
+   upload and the last one seven minutes after it, so a shorter window reports a published version as missing. Every
+   attempt prints what the gallery returned, which is what tells "the uploads never ran" from "the listing is not
+   there yet".
+
    The same command by hand, if the job cannot run (one path per platform):
 
    ```bash

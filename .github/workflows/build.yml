@@ -160,5 +160,10 @@ jobs:
       # **A platform-specific extension is one upload per target, and a listing with one target looks finished.**
       # Measured: `0.1.1` went up as `alpine-x64` alone and its page said "Works with: Alpine Linux 64 bit". This
       # asks the public gallery what the version has and fails when a platform the release ships is absent.
+      #
+      # **Ten minutes, because the listing appears slowly.** Measured on `0.1.2`: the first target was visible 48 s
+      # after its upload and the last one seven minutes later, so a shorter window reports a published version as
+      # missing. Each attempt prints what the gallery returned, which distinguishes "the uploads never ran" from
+      # "the listing is not there yet".
       - name: Verify every platform reached the Marketplace
-        run: node scripts/check-marketplace.mjs --attempts 10 --delay 15000
+        run: node scripts/check-marketplace.mjs --attempts 20 --delay 30000
