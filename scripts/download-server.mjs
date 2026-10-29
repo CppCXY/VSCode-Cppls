@@ -34,34 +34,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ASSETS, executableName } from './targets.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CONFIG_PATH = path.join(ROOT, 'scripts', 'config.json');
 const SERVER_DIR = path.join(ROOT, 'server');
 const TEMP_DIR = path.join(ROOT, 'temp');
 
-/**
- * **VS Code target → the asset the server's release attaches for it.**
- *
- * The left-hand side is the value `vsce package --target` takes and the
- * Marketplace uses; the right-hand side is `cpp_ls-<rust platform>` from the
- * server's `build.yml`. `alpine-*` uses the musl build, which is the one that
- * starts on a distribution without glibc.
- */
-const ASSETS = {
-	'win32-x64': 'cpp_ls-win32-x64.zip',
-	'win32-arm64': 'cpp_ls-win32-arm64.zip',
-	'win32-ia32': 'cpp_ls-win32-ia32.zip',
-	'linux-x64': 'cpp_ls-linux-x64-glibc.2.17.tar.gz',
-	'linux-arm64': 'cpp_ls-linux-aarch64-glibc.2.17.tar.gz',
-	'alpine-x64': 'cpp_ls-linux-musl.tar.gz',
-	'darwin-x64': 'cpp_ls-darwin-x64.tar.gz',
-	'darwin-arm64': 'cpp_ls-darwin-arm64.tar.gz',
-};
-
-/** Where the server looks for the binary, per target family. */
-function executableName(target) {
-	return target.startsWith('win32') ? 'cpp_ls.exe' : 'cpp_ls';
-}
+// The target table and the executable naming live in `targets.mjs`: the same list decides what a release ships and
+// what `check-marketplace.mjs` expects to find there.
 
 function fail(message) {
 	console.error(`error: ${message}`);

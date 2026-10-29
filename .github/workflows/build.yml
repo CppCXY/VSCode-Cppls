@@ -13,7 +13,7 @@ name: Build VSIX
 #   release   creates the GitHub release for the tag and attaches every `.vsix`;
 #   publish   uploads the same `.vsix` files to the Marketplace, one per platform.
 #
-# The Marketplace upload needs the repository secret `VSCE_PAT` (an Azure DevOps
+# The Marketplace upload needs the repository secret `VSCODE_RELEASE` (an Azure DevOps
 # personal access token with the Marketplace's *Manage* scope). Without it the
 # publish job fails with a message saying so — the release still exists, so the
 # packages can be published by hand afterwards.
@@ -142,7 +142,7 @@ jobs:
           VSCE_PAT: ${{ secrets.VSCODE_RELEASE }}
         run: |
           if [ -z "$VSCE_PAT" ]; then
-            echo "::error title=VSCE_PAT is not set::Add the repository secret VSCODE_RELEASE (Azure DevOps PAT with the Marketplace Manage scope), then re-run this job. The release already has every .vsix attached."
+            echo "::error title=VSCODE_RELEASE is not set::Add the repository secret VSCODE_RELEASE (Azure DevOps PAT with the Marketplace Manage scope), then re-run this job. The release already has every .vsix attached."
             exit 1
           fi
 
@@ -156,3 +156,9 @@ jobs:
             echo "publishing $package"
             npx vsce publish --packagePath "$package" --skip-duplicate
           done
+
+      # **A platform-specific extension is one upload per target, and a listing with one target looks finished.**
+      # Measured: `0.1.1` went up as `alpine-x64` alone and its page said "Works with: Alpine Linux 64 bit". This
+      # asks the public gallery what the version has and fails when a platform the release ships is absent.
+      - name: Verify every platform reached the Marketplace
+        run: node scripts/check-marketplace.mjs --attempts 10 --delay 15000

@@ -87,19 +87,23 @@ shipped 30 MB of archives from `temp/` until `.vscodeignore` excluded it.
    more jobs run: **release** creates the GitHub release and attaches every `.vsix`, and **publish** uploads the same
    files to the Marketplace — one per platform, which the `TargetPlatform` inside each `.vsix` makes possible. A push to
    `main` has already built the packages; only a tag attaches and publishes them.
-5. **The Marketplace needs `VSCE_PAT`.** The publish job reads it from the repository secrets: an Azure DevOps personal
-   access token with the Marketplace's *Manage* scope, added under **Settings → Secrets and variables → Actions**.
-   Without it the job fails with a message saying exactly that — the release and its assets are already there, so add the
-   secret and re-run the job. Publishing a version that already exists is skipped (`--skip-duplicate`), so a re-run is
-   safe.
+5. **The Marketplace needs `VSCODE_RELEASE`.** The publish job reads it from the repository secrets: an Azure DevOps
+   personal access token with the Marketplace's *Manage* scope, added under **Settings → Secrets and variables →
+   Actions**. Without it the job fails with a message saying exactly that — the release and its assets are already
+   there, so add the secret and re-run the job. Publishing a version that already exists is skipped
+   (`--skip-duplicate`), so a re-run is safe.
 
-   The same command by hand, if the job cannot run:
+   **One target is one upload.** The Marketplace merges those uploads into one listing, and "Works with" on the
+   extension page is exactly the set that arrived. A version with a single platform looks finished and installs
+   nowhere else — `0.1.1` went up as `alpine-x64` alone, from the first `.vsix` in the release. The job therefore ends
+   with `scripts/check-marketplace.mjs`, which asks the public gallery which targets this version has and fails,
+   naming the missing ones, when it is fewer than `scripts/targets.mjs`'s `PACKAGED`.
+
+   The same command by hand, if the job cannot run (one path per platform):
 
    ```bash
-   npx vsce publish --packagePath cppls-win32-x64.vsix cppls-linux-x64.vsix --skip-duplicate
+   VSCE_PAT=<token> npx vsce publish --packagePath cppls-win32-x64.vsix --skip-duplicate
    ```
-
-   Each `.vsix` names its platform, so one invocation publishes several.
 
 ## Exercising the pipeline without a tag
 
