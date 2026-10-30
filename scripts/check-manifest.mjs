@@ -20,7 +20,9 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'ut
 const problems = [];
 const note = (message) => problems.push(message);
 
-const tokenTypes = ['formatSpecifier', 'formatArgument', 'formatConversion', 'formatEscape'];
+// **`functionPointer` is a custom type too**, and the same rule applies to it: declared under `contributes`, mapped
+// to a theme scope for every language, or the token the server sends is one the editor cannot draw.
+const tokenTypes = ['formatSpecifier', 'formatArgument', 'formatConversion', 'formatEscape', 'functionPointer'];
 const languages = ['c', 'cpp', 'cuda-cpp'];
 
 // **The top-level key is the mistake this script exists for.** VS Code reads the contribution point only under
