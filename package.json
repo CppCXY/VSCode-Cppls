@@ -150,10 +150,6 @@
       {
         "id": "formatEscape",
         "description": "Style for an escaped brace or percent: `{{`, `}}`, `%%`."
-      },
-      {
-        "id": "functionPointer",
-        "description": "Style for a variable whose type is a function pointer — `binary_op operation = add;` — which is called like a function and declared like a variable."
       }
     ],
     "semanticTokenScopes": [
@@ -163,8 +159,7 @@
           "formatSpecifier": [ "keyword.other" ],
           "formatArgument": [ "variable.parameter" ],
           "formatConversion": [ "constant.numeric" ],
-          "formatEscape": [ "constant.character.escape" ],
-          "functionPointer": [ "entity.name.function" ]
+          "formatEscape": [ "constant.character.escape" ]
         }
       },
       {
@@ -173,8 +168,7 @@
           "formatSpecifier": [ "keyword.other" ],
           "formatArgument": [ "variable.parameter" ],
           "formatConversion": [ "constant.numeric" ],
-          "formatEscape": [ "constant.character.escape" ],
-          "functionPointer": [ "entity.name.function" ]
+          "formatEscape": [ "constant.character.escape" ]
         }
       },
       {
@@ -183,8 +177,7 @@
           "formatSpecifier": [ "keyword.other" ],
           "formatArgument": [ "variable.parameter" ],
           "formatConversion": [ "constant.numeric" ],
-          "formatEscape": [ "constant.character.escape" ],
-          "functionPointer": [ "entity.name.function" ]
+          "formatEscape": [ "constant.character.escape" ]
         }
       }
     ],
