@@ -131,6 +131,36 @@ function registerCommands(context: vscode.ExtensionContext): void {
 			}
 		}),
 
+		// **Switch between a source and its header** — clangd's `textDocument/switchSourceHeader`, which is an
+		// extension method rather than part of the protocol. The server answers one URI or `null`.
+		vscode.commands.registerCommand('cppls.switchheadersource', async () => {
+			const editor = vscode.window.activeTextEditor;
+			if (!editor || !client) {
+				return;
+			}
+			let counterpart: string | null | undefined;
+			try {
+				counterpart = await client.languageClient!.sendRequest<string | null>('textDocument/switchSourceHeader', {
+					textDocument: { uri: editor.document.uri.toString() },
+				});
+			} catch (error) {
+				outputChannel?.warn(`switchSourceHeader failed: ${String(error)}`);
+				void vscode.window.showWarningMessage(
+					'cppls: the language server does not answer `textDocument/switchSourceHeader` (too old a server?).',
+				);
+				return;
+			}
+			if (!counterpart) {
+				void vscode.window.setStatusBarMessage(
+					'cppls: no source/header pair for this file',
+					4000,
+				);
+				return;
+			}
+			const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(counterpart));
+			await vscode.window.showTextDocument(document, { preview: false });
+		}),
+
 		vscode.commands.registerCommand('cppls.checkDevServer', async () => {
 			const port = readServerConfig().devPort;
 			const probe = await probeTcpPort(port, { timeoutMs: 1000 });

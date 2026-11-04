@@ -4,6 +4,10 @@ All notable changes to the "cppls" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.2.0]
+
+Many Optimizations and improvements to language support and server handling.
+
 ## [0.1.4]
 
 Support UE

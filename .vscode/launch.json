@@ -24,7 +24,7 @@
         "--extensionDevelopmentPath=${workspaceFolder}"
       ],
       "env": {
-        "CPPLS_DEV": "1"
+        "CPPLS_DEV": "0"
       },
       "outFiles": [
         "${workspaceFolder}/dist/**/*.js"
