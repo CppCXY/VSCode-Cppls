@@ -14,12 +14,12 @@ suite('cppls extension', () => {
 	const EXTENSION_ID = 'CppCXY.cppls';
 
 	/**
-	 * **The CUDA activation report, as a test.**
+	 * **Opening a `.cu` file must activate the extension.**
 	 *
-	 * VS Code derives `onLanguage:` activation events from the languages an extension *contributes* (`c` and `cpp`
-	 * here), not from the languages its language client claims. `cuda-cpp` is contributed by VS Code's built-in cpp
-	 * extension, so before `activationEvents` named it, opening a `.cu` file activated nothing at all: no server, no
-	 * status bar, no diagnostics.
+	 * VS Code derives `onLanguage:` activation events from the languages an extension *contributes*; `cuda-cpp` is
+	 * one of them, because the grammar and the language configuration for it are contributed here. The event is
+	 * therefore implicit. An id nobody contributes — `cuda`, which a `files.associations` entry can produce — needs
+	 * an explicit event instead.
 	 *
 	 * This runs first, before anything below calls `activate()`.
 	 */
@@ -30,10 +30,15 @@ suite('cppls extension', () => {
 		assert.ok(extension, `${EXTENSION_ID} should be installed in the extension host`);
 
 		// The manifest is the part that regressed, so state it even when a restored editor already activated us.
-		const activationEvents: string[] = extension.packageJSON?.activationEvents ?? [];
+		const manifest = extension.packageJSON;
+		const activationEvents: string[] = manifest?.activationEvents ?? [];
+		const contributed: string[] = (manifest?.contributes?.languages ?? []).map(
+			(language: { id: string }) => language.id,
+		);
 		assert.ok(
-			activationEvents.includes('onLanguage:cuda-cpp'),
-			`the manifest must name cuda-cpp: ${JSON.stringify(activationEvents)}`,
+			activationEvents.includes('onLanguage:cuda-cpp') || contributed.includes('cuda-cpp'),
+			`the manifest must activate for cuda-cpp: events=${JSON.stringify(activationEvents)}, ` +
+				`languages=${JSON.stringify(contributed)}`,
 		);
 
 		if (extension.isActive) {
