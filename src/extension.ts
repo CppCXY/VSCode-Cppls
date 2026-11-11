@@ -23,6 +23,7 @@ import { probeTcpPort } from './connection';
 import { describePlanDetails, statusBarText } from './plan';
 import { serverSearchPaths } from './serverPath';
 import { readServerConfig, describeServerConfig } from './settings';
+import { IServerLocation, IServerPosition } from './lspCustom';
 
 let outputChannel: vscode.LogOutputChannel | undefined;
 let traceChannel: vscode.LogOutputChannel | undefined;
@@ -172,7 +173,22 @@ function registerCommands(context: vscode.ExtensionContext): void {
 				);
 			}
 		}),
+
+		vscode.commands.registerCommand('cppls.showReferences', showReferences)
 	);
+}
+
+function showReferences(uri: string, pos: IServerPosition, locations: IServerLocation[]) {
+	const u = vscode.Uri.parse(uri);
+	const p = new vscode.Position(pos.line, pos.character);
+	const vscodeLocations = locations.map(loc =>
+		new vscode.Location(
+			vscode.Uri.parse(loc.uri),
+			new vscode.Range(
+				new vscode.Position(loc.range.start.line, loc.range.start.character),
+				new vscode.Position(loc.range.end.line, loc.range.end.character)
+			)));
+	vscode.commands.executeCommand("editor.action.showReferences", u, p, vscodeLocations);
 }
 
 function isRunning(): boolean {
