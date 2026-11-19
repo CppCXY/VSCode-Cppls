@@ -61,7 +61,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			if (event.affectsConfiguration(`${CONFIG_SECTION}.trace.server`)) {
 				void client?.applyTrace();
 			}
+			if (event.affectsConfiguration(`${CONFIG_SECTION}.inactiveRegions.enabled`)) {
+				// The flag is negotiated in `initialize`, so the client has to reconnect for the server to start (or
+				// stop) sending the notification. The old ranges are cleared at once — a setting that was turned off
+				// must not leave the grey behind while the restart waits.
+				client?.inactiveRegions.clearAll();
+				void vscode.window.setStatusBarMessage(
+					'cppls: restart the language server for the inactive-region setting to take effect',
+					5000,
+				);
+			}
 		}),
+	);
+
+	// Decorations belong to an editor, so a document that becomes visible after its notification arrived has to be
+	// decorated again — and one that is closed has to lose its ranges even if the server's `didClose` answer is late.
+	context.subscriptions.push(
+		vscode.window.onDidChangeVisibleTextEditors(() => client?.inactiveRegions.apply()),
+		vscode.workspace.onDidCloseTextDocument((document) =>
+			client?.inactiveRegions.clear(document.uri.toString()),
+		),
 	);
 
 	logEnvironmentSummary(context);

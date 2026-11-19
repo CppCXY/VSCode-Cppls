@@ -38,6 +38,14 @@ export interface ServerConfig {
 	traceServer: TraceLevel;
 	/** Reveal the "cppls" output channel on activation. */
 	revealOutputChannelOnActivate: boolean;
+	/**
+	 * **Grey out the code this configuration does not compile** — the editor half of the server's
+	 * `textDocument/inactiveRegions` notification.
+	 *
+	 * Read when the client is created, so a change needs a restart of the language server: the capability is
+	 * negotiated once, in `initialize`.
+	 */
+	inactiveRegions: boolean;
 }
 
 /** Documents handled by this extension. */
@@ -111,6 +119,7 @@ export function readServerConfig(scope?: vscode.ConfigurationScope): ServerConfi
 		documentSelector: DOCUMENT_SELECTOR,
 		traceServer: normalizeTrace(config.get<string>('trace.server', 'off')),
 		revealOutputChannelOnActivate: config.get<boolean>('revealOutputChannelOnActivate', false),
+		inactiveRegions: config.get<boolean>('inactiveRegions.enabled', true),
 	};
 }
 

@@ -28,6 +28,7 @@ import { StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node';
 
 import { isDevModeEnabled } from './config';
 import { connectTcp, probeTcpPort } from './connection';
+import { InactiveRegions, INACTIVE_REGIONS_METHOD } from './inactiveRegions';
 import { LaunchPlan, SpawnPlan, TcpPlan, describePlan } from './plan';
 import { ResolvedServer, ensureExecutable, resolveServer, serverSearchPaths } from './serverPath';
 import { ServerConfig, readServerConfig } from './settings';
@@ -129,6 +130,15 @@ export class CpplsLanguageClient implements vscode.Disposable {
 	private readonly config: ConfigProvider;
 	private stopped = false;
 
+	/**
+	 * **The decorations for the code this configuration does not compile**, fed by the server's
+	 * `textDocument/inactiveRegions` notification.
+	 *
+	 * Owned here rather than by the extension so that every lifecycle event that makes the ranges stale — a restart,
+	 * a stop, a different workspace — clears them in the same place that stops the server.
+	 */
+	public readonly inactiveRegions = new InactiveRegions();
+
 	public constructor(
 		private readonly extensionPath: string,
 		private readonly extensionVersion: string,
@@ -180,6 +190,14 @@ export class CpplsLanguageClient implements vscode.Disposable {
 			// and is picked up when the connection is created.
 			await this.applyTrace(this.client);
 			await this.client.start();
+			// **The push half of the inactive-region feature.** Registered after the handshake, so the client has
+			// seen `inactiveRegionsProvider` and the server has the opt-in from `initialize`. A restart creates a
+			// new language client (or re-runs the same one), and the listener is re-registered for each.
+			this.client.onNotification(INACTIVE_REGIONS_METHOD, (params) =>
+				this.inactiveRegions.handle(params),
+			);
+			// An editor that became visible while the client was starting has no decorations yet.
+			this.inactiveRegions.apply();
 			this.lastError = undefined;
 			return true;
 		} catch (error) {
@@ -200,6 +218,9 @@ export class CpplsLanguageClient implements vscode.Disposable {
 
 	/** Stops and starts the client, recreating it after a failed start. */
 	public async restart(): Promise<boolean> {
+		// **Before the restart, not after**: the ranges on screen describe text the new server has not read, and a
+		// restart that fails must not leave them there either.
+		this.inactiveRegions.clearAll();
 		if (this.client && this.client.state === State.Running) {
 			try {
 				await this.client.restart();
@@ -216,6 +237,9 @@ export class CpplsLanguageClient implements vscode.Disposable {
 	/** Stops the client, kills spawned processes and waits for shutdown. */
 	public async stop(): Promise<void> {
 		this.stopped = true;
+		// **Nothing greyed survives the server that decided it.** A notification is not an edit, so no client-side
+		// event would clear a range the next server never sent.
+		this.inactiveRegions.clearAll();
 		const client = this.client;
 		this.client = undefined;
 		if (client && client.state !== State.Stopped) {
@@ -230,6 +254,7 @@ export class CpplsLanguageClient implements vscode.Disposable {
 
 	public dispose(): void {
 		void this.stop();
+		this.inactiveRegions.dispose();
 	}
 
 	private reportStartFailure(error: unknown): void {
@@ -271,6 +296,11 @@ export class CpplsLanguageClient implements vscode.Disposable {
 				// Lets the server tell whether it was launched by the extension or
 				// started by hand during development.
 				clientInfo: { name: 'vscode-cppls', version: this.extensionVersion },
+				// **The opt-in for `textDocument/inactiveRegions`.** The notification is clangd's extension, so it is
+				// not a protocol capability; the server reads this flag (and only then advertises
+				// `inactiveRegionsProvider`) and stays silent for a client that did not ask. A settings change takes
+				// effect on the next start, because `initialize` happens once per connection.
+				inactiveRegions: this.config().inactiveRegions,
 			},
 			errorHandler: this.createErrorHandler(),
 			connectionOptions: { maxRestartCount: 3 },

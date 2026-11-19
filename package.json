@@ -311,6 +311,11 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Reveal the `cppls` output channel as soon as the language server starts."
+        },
+        "cppls.inactiveRegions.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Grey out the code the current configuration does not compile: branches of #if/#ifdef whose condition is false, with the macro context the project was analysed under. The region is only drawn when the analysis could decide every condition from a definition it actually had — a branch chosen because a name is simply undefined (C's undefined-is-zero rule) is never painted. Takes effect after a restart of the language server."
         }
       }
     }
