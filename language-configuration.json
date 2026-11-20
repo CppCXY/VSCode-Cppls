@@ -1,59 +1,180 @@
 {
   "comments": {
     "lineComment": "//",
-    "blockComment": ["/*", "*/"]
+    "blockComment": [
+      "/*",
+      "*/"
+    ]
   },
   "brackets": [
-    ["{", "}"],
-    ["[", "]"],
-    ["(", ")"]
+    [
+      "{",
+      "}"
+    ],
+    [
+      "[",
+      "]"
+    ],
+    [
+      "(",
+      ")"
+    ]
   ],
   "autoClosingPairs": [
-    { "open": "[", "close": "]" },
-    { "open": "{", "close": "}" },
-    { "open": "(", "close": ")" },
-    { "open": "'", "close": "'", "notIn": ["string", "comment"] },
-    { "open": "\"", "close": "\"", "notIn": ["string", "comment"] },
-    { "open": "/*", "close": "*/", "notIn": ["string"] },
-    { "open": "/**", "close": " */", "notIn": ["string"] }
+    {
+      "open": "[",
+      "close": "]"
+    },
+    {
+      "open": "{",
+      "close": "}"
+    },
+    {
+      "open": "(",
+      "close": ")"
+    },
+    {
+      "open": "'",
+      "close": "'",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    },
+    {
+      "open": "\"",
+      "close": "\"",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    },
+    {
+      "open": "/*",
+      "close": "*/",
+      "notIn": [
+        "string"
+      ]
+    },
+    {
+      "open": "/**",
+      "close": " */",
+      "notIn": [
+        "string"
+      ]
+    },
+    // C++26 反射运算符 ^^ 不是“成对括号”，但 ^^ 连续输入时无需自动闭合；
+    // splice 运算符 [: :] 由 [ 和 ] 自动闭合覆盖，无需额外条目。
+    // 以下为 Doxygen 单行文档注释续行服务，仅在需要时由 onEnterRules 追加，
+    // 不纳入 autoClosingPairs 以避免普通注释被错误闭合。
   ],
+  "autoCloseBefore": ";:.,=}])>` \n\t",
   "surroundingPairs": [
-    ["{", "}"],
-    ["[", "]"],
-    ["(", ")"],
-    ["\"", "\""],
-    ["'", "'"],
-    ["<", ">"]
+    [
+      "{",
+      "}"
+    ],
+    [
+      "[",
+      "]"
+    ],
+    [
+      "(",
+      ")"
+    ],
+    [
+      "\"",
+      "\""
+    ],
+    [
+      "'",
+      "'"
+    ],
+    [
+      "<",
+      ">"
+    ]
   ],
   "wordPattern": "(-?\\d*\\.\\d\\w*)|([^\\`\\~\\!\\@\\#\\%\\^\\&\\*\\(\\)\\-\\=\\+\\[\\{\\]\\}\\\\\\|\\;\\:\\'\\\"\\,\\.\\<\\>\\/\\?\\s]+)",
   "indentationRules": {
-    "increaseIndentPattern": "^.*(\\{[^}]*|\\([^)]*|\\[[^\\]]*)$",
-    "decreaseIndentPattern": "^\\s*[}\\]\\)].*$"
+    "increaseIndentPattern": "^((?!\\/\\/).)*(\\{[^}\"'`]*|\\([^)\"'`]*|\\[[^\\]\"'`]*)$",
+    "decreaseIndentPattern": "^((?!.*?\\/\\*).*\\*/)?\\s*[}\\]\\)].*$"
   },
   "onEnterRules": [
     {
-      "previousLineText": "^\\s*(((else ?)?if|for|while)\\s*\\(.*\\)\\s*|else\\s*)$",
+      "previousLineText": "^\\s*(((else ?)?if|for|while|switch)\\s*\\(.*\\)\\s*|else\\s*)$",
       "beforeText": "^\\s+([^{i\\s]|i(?!f\\b))",
-      "action": { "indent": "outdent" }
+      "action": {
+        "indent": "outdent"
+      }
     },
     {
-      "beforeText": "^\\s*//\\s*\\S|\\s//\\s+\\S",
-      "afterText": "^(?!\\s*$)",
-      "action": { "indent": "none", "appendText": "// " }
+      "previousLineText": "^\\s*(?:pre|post)\\s*\\(.*\\)\\s*$",
+      "beforeText": "^\\s*\\S",
+      "action": {
+        "indent": "none"
+      }
     },
+    // ---- Doxygen 单行文档注释续行 ----
+    // **`afterText` 不能用** —— 它是光标**之后**的文本，要求它非空，就意味着行尾（正好是续行的位置）永远不命中：
+    // 这就是“输入 `///` 回车后不会自动补 `///`”的原因。去掉它以后，只要当前行是 `///`（或 `//!`）注释就会续行，
+    // 缩进跟着上一行走。
+    {
+      "beforeText": "^\\s*///.*$",
+      "action": {
+        "indent": "none",
+        "appendText": "/// "
+      }
+    },
+    // //! 风格（C++ 常用的 Doxygen 单行形式）
+    {
+      "beforeText": "^\\s*//!.*$",
+      "action": {
+        "indent": "none",
+        "appendText": "//! "
+      }
+    },
+    // ///< 尾随文档（`int count; ///< how many`）：上一条规则要求行首，这一条覆盖行中；续行给出 `///< `，
+    // 否则下一行就不再是尾随文档了。
+    {
+      "beforeText": "^.*///<.*$",
+      "action": {
+        "indent": "none",
+        "appendText": "///< "
+      }
+    },
+    // ---- Doxygen 多行块注释 /** ... */ 与 /*! ... */ ----
     {
       "beforeText": "^\\s*/\\*\\*(?!/)(?:(?!\\*/).)*$",
       "afterText": "^\\s*\\*/$",
-      "action": { "indent": "indentOutdent", "appendText": " * " }
+      "action": {
+        "indent": "indentOutdent",
+        "appendText": " * "
+      }
     },
+    {
+      "beforeText": "^\\s*/\\*!(?:(?!\\*/).)*$",
+      "afterText": "^\\s*\\*/$",
+      "action": {
+        "indent": "indentOutdent",
+        "appendText": " * "
+      }
+    },
+    // 普通块注释 /* ... */：保持原有行为
     {
       "beforeText": "^\\s*/\\*(?:(?!\\*/).)*$",
       "afterText": "^\\s*\\*/$",
-      "action": { "indent": "none", "appendText": " * " }
+      "action": {
+        "indent": "none",
+        "appendText": " * "
+      }
     },
+    // 预处理指令 # 不缩进
     {
       "beforeText": "^\\s*#",
-      "action": { "indent": "none" }
+      "action": {
+        "indent": "none"
+      }
     }
   ],
   "folding": {
@@ -63,8 +184,17 @@
     }
   },
   "colorizedBracketPairs": [
-    ["{", "}"],
-    ["[", "]"],
-    ["(", ")"]
+    [
+      "{",
+      "}"
+    ],
+    [
+      "[",
+      "]"
+    ],
+    [
+      "(",
+      ")"
+    ]
   ]
 }

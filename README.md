@@ -2,7 +2,11 @@
 
 **C and C++ language support for VS Code**, powered by [`cpp_ls`](https://github.com/CppCXY/cpp_ls) — a C/C++
 language server written from scratch in Rust. The server is bundled with the extension, so there is nothing else to
-install: no clangd, no compiler daemon, and no `compile_commands.json` required to be useful.
+install: no clangd, no compiler daemon, and no build description required to be useful.
+
+The grammar covers **C++11 through C++26** — concepts, modules and coroutines; deducing `this` and `if consteval`;
+and the two C++26 language features nothing else parses yet, **static reflection** (`^^T`, `[: r :]`) and **contracts**
+(`pre(…)`, `post(…)`, `contract_assert(…)`) — plus C23, CUDA, and the GNU/MSVC extensions a real header needs.
 
 [![Marketplace](https://img.shields.io/visual-studio-marketplace/v/CppCXY.cppls?label=marketplace&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=CppCXY.cppls)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/CppCXY.cppls)](https://marketplace.visualstudio.com/items?itemName=CppCXY.cppls)
@@ -23,6 +27,7 @@ install: no clangd, no compiler daemon, and no `compile_commands.json` required 
 | **Formatting** | Whole document and selection — built on the same parser, [not clang-format](#formatting) |
 | **Semantic tokens** | A name is coloured by what it *is* — type, function, member, macro — not by how it looks |
 | **Also** | Signature help, call hierarchy, document and workspace symbols, folding, selection range, document highlight, `#include` links, and a quick fix that adds the `#include` declaring an unresolved name |
+| **Writing documentation** | `///` and `//!` continue on Enter with the same indent, `/**` opens the next line as ` * `, `///<` stays a trailing doc — the editor's own [language configuration](language-configuration.json), no round trip |
 
 The analysis follows the text the editor has, not only what has been saved: completion and hover work in a file that has
 never compiled, and a half-typed line does not stop the rest of the translation unit from resolving.
@@ -68,10 +73,13 @@ package for that machine, or let the Marketplace choose it.
 
 1. **Open a folder** with C or C++ sources. The server starts with the first document and indexes the workspace in the
    background; the status bar shows the active mode (click it for details).
-2. **Optionally, tell it how the project is built.** It reads a `compile_commands.json` from the project root or a build
-   directory (CMake: `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`), and asks a compiler on `PATH` for its system include paths
-   and predefined macros. Neither is required: with no database, includes resolve relative to the file and headers
-   nothing could place are looked for inside the project.
+2. **Optionally, tell it how the project is built.** It reads a **compilation database** from the project root or a build
+   directory — `compile_commands.json` (CMake: `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`, Ninja, Meson, Bazel, Bear, …) or
+   CMake 3.31's module-aware `build_database.json` (`CMAKE_EXPORT_BUILD_DATABASE=ON`) — and asks a compiler on `PATH`
+   for its system include paths and predefined macros. None of it is required: with no database, includes resolve
+   relative to the file and headers nothing could place are looked for inside the project. The two formats, their
+   discovery order and what is read from them are in
+   [`docs/configuration.md`](https://github.com/CppCXY/cpp_ls/blob/main/docs/configuration.md#the-two-database-formats).
 3. **Point it at a compiler when discovery picks the wrong one** — `[compile].compiler` in `.cppls.toml`, or a
    `compile_commands.json`, decides whose standard library and macros are read.
 
@@ -103,7 +111,7 @@ exclude = ["build/**", "third_party/**"]     # globs the analysis must not read
 source_extensions = ["cuh", "ipp"]           # added to the files the engine already knows
 
 [compile]
-database = "build/compile_commands.json"     # when discovery would not find it
+database = "build/compile_commands.json"     # when discovery would not find it (`build_database.json` too)
 compiler = "clang++"                         # whose headers and macros are read
 standard = "c++20"                           # the project-wide -std=
 args = ["-DFEATURE=1", "-Iinclude"]          # the whole command line, *instead of* the database's
@@ -216,7 +224,8 @@ run clang-format** (or your project's formatter) and let this be the editor's fa
 `cppls.server.path` at a build of `cpp_ls`.
 
 **`#include <vector>` is underlined, or a standard library name is unknown.** The compiler could not be asked, so the
-server has no system include paths: set `[compile].compiler`, or provide a `compile_commands.json`.
+server has no system include paths: set `[compile].compiler`, or provide a compilation database
+(`compile_commands.json` or `build_database.json`).
 
 **Indexing is slow.** It is bounded by `[index].max_files` and shaped by `[workspace].exclude`; a build tree that is not
 excluded is the usual cause. Summaries are cached in `[index].cache_dir` and reused on the next start.

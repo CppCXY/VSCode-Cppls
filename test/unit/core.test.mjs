@@ -5,6 +5,7 @@
 
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readJsonc } from './jsonc.mjs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -464,9 +465,7 @@ test('cuda documents are claimed by the id VS Code actually gives them', () => {
 // language configuration
 // ---------------------------------------------------------------------------
 
-const LANGUAGE_CONFIG = JSON.parse(
-	fs.readFileSync(path.join(EXTENSION_ROOT, 'language-configuration.json'), 'utf8'),
-);
+const LANGUAGE_CONFIG = readJsonc(path.join(EXTENSION_ROOT, 'language-configuration.json'));
 
 test('the language configuration covers comments, brackets, folding and indentation', () => {
 	assert.equal(LANGUAGE_CONFIG.comments.lineComment, '//');

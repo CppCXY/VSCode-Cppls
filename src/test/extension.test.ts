@@ -106,6 +106,24 @@ suite('cppls extension', () => {
 		await vscode.commands.executeCommand('cppls.checkDevServer');
 	});
 
+	test('continues a /// documentation line on Enter', async function () {
+		this.timeout(20000);
+
+		// `/// Doc` + Enter must continue the documentation comment with the same marker and indentation. The rule that
+		// asked for this used to require non-empty text *after* the cursor, so it never fired at the end of the line —
+		// which is exactly where a doc comment is continued. This test presses Enter like a person does.
+		const document = await vscode.workspace.openTextDocument({ language: 'cpp', content: '/// Doc' });
+		const editor = await vscode.window.showTextDocument(document);
+		editor.selection = new vscode.Selection(0, 7, 0, 7);
+		await vscode.commands.executeCommand('type', { text: '\n' });
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		const lines = editor.document.getText().split(/\r?\n/);
+		assert.equal(lines[0], '/// Doc', 'the first line is untouched');
+		assert.equal(lines[1], '/// ', 'and the next one continues it');
+		await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+	});
+
 	test('uses our language configuration for block-comment continuation', async function () {
 		this.timeout(20000);
 

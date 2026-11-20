@@ -4,6 +4,23 @@ All notable changes to the "cppls" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+### Fixed
+
+- **Enter at the end of a `///` (or `//!`) documentation line continues it.** The `onEnterRules` entry for it also
+  required non-empty text *after* the cursor, which is never true at the end of the line — the one place a doc comment
+  is continued — so nothing was appended. `///<` trailing docs continue as `///<` too, and `/**` still opens the
+  next line as ` * `. `test/unit/languageConfiguration.test.mjs` evaluates the rules the way the editor does, and
+  the extension-host test presses Enter for real.
+
+### Changed
+
+- The language configuration is read as **JSONC** by the tests (it carries comments, and VS Code reads it with its own
+  scanner), so `test/unit/core.test.mjs` no longer fails with `SyntaxError` on the file's `//` comments.
+- The README says what the grammar covers — **C++11 through C++26**, static reflection and contracts included — and
+  documents CMake's `build_database.json` next to `compile_commands.json`.
+
 ## [0.3.0]
 
 Optimize Performance
