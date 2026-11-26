@@ -6,7 +6,7 @@ install: no clangd, no compiler daemon, and no build description required to be 
 
 The grammar covers **C++11 through C++26** — concepts, modules and coroutines; deducing `this` and `if consteval`;
 and the two C++26 language features nothing else parses yet, **static reflection** (`^^T`, `[: r :]`) and **contracts**
-(`pre(…)`, `post(…)`, `contract_assert(…)`) — plus C23, CUDA, and the GNU/MSVC extensions a real header needs.
+(`pre(…)`, `post(…)`, `contract_assert(…)`) — plus C23, CUDA, Ascend, and the GNU/MSVC extensions a real header needs.
 
 [![Marketplace](https://img.shields.io/visual-studio-marketplace/v/CppCXY.cppls?label=marketplace&logo=visualstudiocode&logoColor=white)](https://marketplace.visualstudio.com/items?itemName=CppCXY.cppls)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/CppCXY.cppls)](https://marketplace.visualstudio.com/items?itemName=CppCXY.cppls)

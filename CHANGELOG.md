@@ -4,7 +4,17 @@ All notable changes to the "cppls" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.5.0]
+
+### Changed
+
+- Improve performance of the extension, including faster language server response times and reduced memory usage.
+
+- Add support for Ascend-specific language features and extensions.
+
+- Fix many GNU compiler-specific issues and extensions, ensuring better compatibility with GNU C/C++ code.
+
+## [0.4.0]
 
 ### Fixed
 
