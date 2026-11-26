@@ -43,7 +43,8 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
-    "onLanguage:cuda"
+    "onLanguage:cuda",
+    "onLanguage:ascend"
   ],
   "contributes": {
     "commands": [
@@ -136,13 +137,25 @@
           ".cuh"
         ],
         "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "ascend-cpp",
+        "aliases": [
+          "Ascend C",
+          "Ascend C++"
+        ],
+        "extensions": [
+          ".cce",
+          ".asc"
+        ],
+        "configuration": "./language-configuration.json"
       }
     ],
     "keybindings": [
       {
         "command": "cppls.switchheadersource",
         "key": "alt+o",
-        "when": "editorTextFocus && (editorLangId == cpp || editorLangId == c || editorLangId == cuda-cpp)"
+        "when": "editorTextFocus && (editorLangId == cpp || editorLangId == c || editorLangId == cuda-cpp || editorLangId == ascend-cpp)"
       }
     ],
     "semanticTokenTypes": [
@@ -227,6 +240,26 @@
             "constant.character.escape"
           ]
         }
+      },
+      {
+        "language": "ascend-cpp",
+        "scopes": {
+          "declarationKeyword": [
+            "keyword.operator.cast"
+          ],
+          "formatSpecifier": [
+            "keyword.other"
+          ],
+          "formatArgument": [
+            "variable.parameter"
+          ],
+          "formatConversion": [
+            "constant.numeric"
+          ],
+          "formatEscape": [
+            "constant.character.escape"
+          ]
+        }
       }
     ],
     "grammars": [
@@ -249,6 +282,11 @@
         "language": "cuda-cpp",
         "scopeName": "source.cuda-cpp",
         "path": "./syntaxes/cuda-cpp.tmLanguage.json"
+      },
+      {
+        "language": "ascend-cpp",
+        "scopeName": "source.ascend-cpp",
+        "path": "./syntaxes/ascend-cpp.tmLanguage.json"
       }
     ],
     "configuration": {

@@ -69,10 +69,18 @@ export const DOCUMENT_SELECTOR: DocumentSelector = [
 	// Both schemes: an untitled CUDA buffer is a scratchpad a reader pastes into.
 	{ scheme: 'file', language: 'cuda-cpp' },
 	{ scheme: 'file', language: 'cuda' },
+	// **Ascend C**, the AICore kernel language: C++ plus `__aicore__`, `__gm__`, `__ubuf__` and the toolkit's
+	// vocabulary. The server reads those as reserved spellings only when the project family is Ascend C, so claiming
+	// these documents costs an ordinary C++ project nothing. `.cce`/`.asc` are the Ascend compiler's own suffixes;
+	// `ascend` is what `files.associations` produces when a reader names the language themselves.
+	{ scheme: 'file', language: 'ascend-cpp' },
+	{ scheme: 'file', language: 'ascend' },
 	{ scheme: 'untitled', language: 'c' },
 	{ scheme: 'untitled', language: 'cpp' },
 	{ scheme: 'untitled', language: 'cuda-cpp' },
 	{ scheme: 'untitled', language: 'cuda' },
+	{ scheme: 'untitled', language: 'ascend-cpp' },
+	{ scheme: 'untitled', language: 'ascend' },
 ];
 
 /**

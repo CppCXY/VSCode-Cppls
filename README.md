@@ -161,6 +161,24 @@ A build whose `compile_commands.json` has `nvcc` commands needs none of this —
 deliberately not a setting: it is defined only in the device compilation pass, and defining it for a whole file would
 send host code down a branch a real compiler never takes.
 
+### Ascend C
+
+`.cce` and `.asc` are Ascend C kernel sources; a `.cpp` kernel in an Ascend project is read as Ascend C when the
+project says so. The AICore qualifiers (`__aicore__`, `__global__`, `__gm__`, `__ubuf__`, …) and the toolkit's
+`kernel_operator.h` are what the family adds:
+
+```toml
+[compile.ascend]
+enable = true
+toolkit = "C:/Ascend/ascend-toolkit/latest"
+include = ["src/kernels/include"]             # extra include directories, relative to the root
+args = ["-DASCENDC_CPU_DEBUG"]                # appended to whichever flags won
+```
+
+`toolkit` adds the installation's `compiler/tikcpp/tikcfw`, `tikcfw/interface` and `include` directories. The three
+families are mutually exclusive: a project enables at most one of `[compile.cuda]`, `[unreal]` and
+`[compile.ascend]`.
+
 If `ms-vscode.cpptools` is also installed, it answers for C/C++ documents too and on a `.cu` file both servers compete.
 To keep this extension as the only answer, turn that one's IntelliSense off (its colouring can stay):
 
@@ -186,10 +204,11 @@ C       .c .i
 C++     .cc .cpp .cxx .c++ .ccm .cppm .cxxm .c++m .h .hh .hpp .hxx .h++ .inl .ipp .tpp .txx .ixx .mpp .mxx .ino
         .hpp.in .h.in .ii
 CUDA    .cu .cuh
+Ascend C .cce .asc
 ```
 
 Any other file reached through an `#include` is analysed too, whatever it is called: that is how a compiler finds a
-header, so it is how the server finds one. The extension ships its own TextMate grammars for the three language ids, so
+header, so it is how the server finds one. The extension ships its own TextMate grammars for the four language ids, so
 baseline colouring does not depend on another extension.
 
 ## Diagnostics
@@ -216,7 +235,8 @@ run clang-format** (or your project's formatter) and let this be the editor's fa
 
 ## Troubleshooting
 
-**Nothing happens.** The extension activates for C, C++ and CUDA documents only. Open a `.cpp` or `.cu` file, or run any
+**Nothing happens.** The extension activates for C, C++, CUDA and Ascend C documents only. Open a `.cpp`, `.cu`,
+`.cce` or `.asc` file, or run any
 `cppls:` command.
 
 **The server does not start.** `cppls: Show Server Info` names the executable it tried and every path it searched;

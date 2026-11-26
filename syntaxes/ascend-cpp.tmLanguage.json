@@ -1,0 +1,13 @@
+{
+  "name": "Ascend C",
+  "scopeName": "source.ascend-cpp",
+  "patterns": [
+    {
+      "match": "(?<!\\w)(__aicore__|__global__|__host__|__device__|__gm__|__ubuf__|__cbuf__|__fbuf__|__ca__|__cb__|__cc__)(?!\\w)",
+      "name": "storage.modifier.ascend-cpp"
+    },
+    {
+      "include": "source.cpp"
+    }
+  ]
+}

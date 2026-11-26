@@ -85,18 +85,23 @@ suite('cppls extension', () => {
 		assert.strictEqual(configuration.get('trace.server'), 'off');
 	});
 
-	test('claims C, C++ and CUDA documents, with headers as C++', async () => {
+	test('claims C, C++, CUDA and Ascend C documents, with headers as C++', async () => {
 		const engine = vscode.extensions.getExtension(EXTENSION_ID);
 		const languages: { id: string; extensions?: string[]; configuration?: string }[] =
 			engine?.packageJSON?.contributes?.languages ?? [];
 		const ids = languages.map((language) => language.id).sort();
-		assert.deepStrictEqual(ids, ['c', 'cpp', 'cuda-cpp']);
+		assert.deepStrictEqual(ids, ['ascend-cpp', 'c', 'cpp', 'cuda-cpp']);
 
 		const c = languages.find((language) => language.id === 'c');
 		const cpp = languages.find((language) => language.id === 'cpp');
-		assert.ok(c && cpp);
+		const ascend = languages.find((language) => language.id === 'ascend-cpp');
+		assert.ok(c && cpp && ascend);
 		assert.ok(!c.extensions?.includes('.h'), 'headers must not be claimed by C');
 		assert.ok(cpp.extensions?.includes('.h'), 'headers are C++');
+		assert.ok(
+			ascend.extensions?.includes('.cce') && ascend.extensions?.includes('.asc'),
+			'Ascend sources use .cce/.asc',
+		);
 		for (const language of languages) {
 			assert.strictEqual(language.configuration, './language-configuration.json');
 		}
