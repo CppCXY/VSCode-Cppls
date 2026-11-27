@@ -6,6 +6,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.5.0]
 
+### Fixed
+
+- **`cppls.trace.server` now produces LSP traffic.** `vscode-languageclient` only reads the setting when its trace
+  output channel reports `Trace`, and a `LogOutputChannel` defaults to `Info`; `initialize` therefore reset the trace
+  level to `Off`. The client gets a trace façade that reports `Trace` and writes the protocol lines to the visible
+  output channel, and the setting is reapplied after start/restart.
+
 ### Changed
 
 - Improve performance of the extension, including faster language server response times and reduced memory usage.

@@ -33,6 +33,48 @@ import { LaunchPlan, SpawnPlan, TcpPlan, describePlan } from './plan';
 import { ResolvedServer, ensureExecutable, resolveServer, serverSearchPaths } from './serverPath';
 import { ServerConfig, readServerConfig } from './settings';
 
+/**
+ * **The trace output channel vscode-languageclient needs rather than the one a reader opens.**
+ *
+ * `LanguageClient.refreshTrace` only reads `cppls.trace.server` when `traceOutputChannel.logLevel` is `Trace`; its
+ * `LogOutputChannel` defaults to the editor's log level (`Info`), and its `trace()` method filters at that level. So a
+ * plain log channel made the setting a no-op: even after `setTrace` the messages were discarded, and `initialize`
+ * called `refreshTrace` and turned tracing back off.
+ *
+ * This façade reports `Trace` so the setting is honoured, and writes trace lines with `appendLine` so they are visible
+ * without the reader first changing the channel's log level in the Output panel. The visible channel remains a normal
+ * `LogOutputChannel`, owned and disposed by the extension.
+ */
+export function createTraceOutputChannel(source: vscode.LogOutputChannel): vscode.LogOutputChannel {
+	const level = new vscode.EventEmitter<vscode.LogLevel>();
+	const write = (message: string, ...args: unknown[]) => {
+		const rendered = args.length === 0
+			? message
+			: `${message} ${args.map((arg) => (typeof arg === 'string' ? arg : JSON.stringify(arg))).join(' ')}`;
+		source.appendLine(rendered);
+	};
+	return {
+		name: source.name,
+		logLevel: vscode.LogLevel.Trace,
+		onDidChangeLogLevel: level.event,
+		trace: write,
+		debug: write,
+		info: write,
+		warn: write,
+		error: write,
+		append: (value) => source.append(value),
+		appendLine: (value) => source.appendLine(value),
+		replace: (value) => source.replace(value),
+		clear: () => source.clear(),
+		show: () => source.show(),
+		hide: () => source.hide(),
+		dispose: () => {
+			level.dispose();
+			source.dispose();
+		},
+	};
+}
+
 export { describePlan };
 export type { LaunchPlan };
 
@@ -190,6 +232,9 @@ export class CpplsLanguageClient implements vscode.Disposable {
 			// and is picked up when the connection is created.
 			await this.applyTrace(this.client);
 			await this.client.start();
+			// **After** start: `initialize` calls languageclient's own `refreshTrace`, which reads the channel's level
+			// and the setting. Reapplying here makes the user's choice win even for the first session.
+			await this.applyTrace(this.client);
 			// **The push half of the inactive-region feature.** Registered after the handshake, so the client has
 			// seen `inactiveRegionsProvider` and the server has the opt-in from `initialize`. A restart creates a
 			// new language client (or re-runs the same one), and the listener is re-registered for each.
@@ -224,6 +269,7 @@ export class CpplsLanguageClient implements vscode.Disposable {
 		if (this.client && this.client.state === State.Running) {
 			try {
 				await this.client.restart();
+				await this.applyTrace(this.client);
 				return true;
 			} catch (error) {
 				this.reportStartFailure(error);

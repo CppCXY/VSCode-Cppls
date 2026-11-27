@@ -1,6 +1,8 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 
+import { createTraceOutputChannel } from '../client';
+
 /**
  * Integration tests running inside a real extension host.
  *
@@ -83,6 +85,17 @@ suite('cppls extension', () => {
 		assert.strictEqual(configuration.get('server.launchMode'), 'auto');
 		assert.strictEqual(configuration.get('server.port'), 5009);
 		assert.strictEqual(configuration.get('trace.server'), 'off');
+	});
+
+	test('the LSP trace channel reports Trace so trace.server is honoured', () => {
+		const source = vscode.window.createOutputChannel('cppls trace test', { log: true });
+		const sink = createTraceOutputChannel(source);
+		try {
+			assert.strictEqual(sink.logLevel, vscode.LogLevel.Trace);
+			assert.doesNotThrow(() => sink.trace('a protocol message'));
+		} finally {
+			sink.dispose();
+		}
 	});
 
 	test('claims C, C++, CUDA and Ascend C documents, with headers as C++', async () => {

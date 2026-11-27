@@ -10,7 +10,7 @@
 import * as vscode from 'vscode';
 import { State } from 'vscode-languageclient/node';
 
-import { CpplsLanguageClient } from './client';
+import { CpplsLanguageClient, createTraceOutputChannel } from './client';
 import {
 	CONFIG_SECTION,
 	ENV_DEV,
@@ -32,7 +32,10 @@ let statusBar: vscode.StatusBarItem | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	outputChannel = vscode.window.createOutputChannel('cppls', { log: true });
-	traceChannel = vscode.window.createOutputChannel('cppls (LSP trace)', { log: true });
+	// The visible channel is a normal log channel; the language client gets the façade that reports `Trace` and writes
+	// the trace lines as ordinary output — see `createTraceOutputChannel`.
+	const traceOutput = vscode.window.createOutputChannel('cppls (LSP trace)', { log: true });
+	traceChannel = createTraceOutputChannel(traceOutput);
 	context.subscriptions.push(outputChannel, traceChannel);
 
 	client = new CpplsLanguageClient(
